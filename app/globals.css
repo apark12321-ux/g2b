@@ -274,3 +274,27 @@ textarea.full { min-height: 64px; resize: vertical; }
 }
 .file-none { font-size: 13px; color: var(--muted); }
 @media (max-width: 640px) { .file .fname { max-width: 200px; } }
+
+/* ---------- AI 공고 분석 */
+.analyze-btn {
+  margin-top: 10px; border: 1px dashed var(--indigo); color: var(--indigo); background: none;
+  border-radius: 7px; padding: 7px 12px; font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.analyze-btn:disabled { opacity: .7; cursor: progress; }
+.analysis { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.analysis summary { cursor: pointer; padding: 10px 12px; font-size: 14px; line-height: 1.5; list-style: none; }
+.analysis summary::-webkit-details-marker { display: none; }
+.analysis summary::after { content: " 자세히"; color: var(--indigo); font-size: 13px; white-space: nowrap; }
+.analysis[open] summary::after { content: " 접기"; }
+.fit { display: inline-block; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 1px 6px; margin-right: 6px; color: #fff; }
+.fit-hi { background: var(--seal); }
+.fit-mid { background: var(--indigo); }
+.fit-lo { background: var(--pass); }
+.an-body { padding: 0 12px 12px; font-size: 14px; }
+.an-body h4 { margin: 12px 0 4px; font-size: 13px; color: var(--muted); font-weight: 700; }
+.an-body ul { margin: 0; padding-left: 18px; }
+.an-body li { margin: 2px 0; }
+.an-body p { margin: 0; }
+.an-body .na { color: var(--muted); }
+.fit-reason { padding: 8px 10px; border-left: 3px solid var(--indigo); background: var(--sheet); }
+.an-src { margin-top: 12px !important; font-size: 12px; color: var(--muted); }

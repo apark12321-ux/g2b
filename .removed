@@ -7,3 +7,4 @@ app/rules
 app/api/rules
 app/api/keywords/route.js
 lib/rules.js
+package-lock.json

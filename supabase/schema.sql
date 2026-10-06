@@ -56,3 +56,7 @@ insert into rules (name, topic, include, exclude) values
 
 -- v10: 첨부파일 목록
 alter table bids add column if not exists files jsonb not null default '[]';
+
+-- v13: AI 공고 분석
+alter table bids add column if not exists analysis jsonb;
+alter table bids add column if not exists analyzed_at timestamptz;

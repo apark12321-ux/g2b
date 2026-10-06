@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
 import { getSettings } from "@/lib/keywords";
+import { isExcluded as excluded } from "@/lib/watch-words";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export async function GET() {
     const err = bids.error || runs.error;
     if (err) throw err;
     return NextResponse.json({
-      bids: bids.data,
+      bids: bids.data.filter((b) => !excluded(b.title)),
       lastRun: runs.data[0] || null,
       topic: settings.topic,
     });

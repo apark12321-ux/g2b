@@ -60,6 +60,9 @@ export default function Home() {
     }
   };
 
+  const setAnalysis = (key, analysis) =>
+    setData((d) => ({ ...d, bids: d.bids.map((b) => (b.key === key ? { ...b, analysis } : b)) }));
+
   const update = async (key, patch) => {
     setData((d) => ({ ...d, bids: d.bids.map((b) => (b.key === key ? { ...b, ...patch } : b)) }));
     try {
@@ -140,7 +143,7 @@ export default function Home() {
       )}
 
       <div className="list">
-        {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update} />)}
+        {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update} onAnalyzed={setAnalysis} say={say} />)}
       </div>
 
       {toast && <div className={`toast ${toast.bad ? "bad" : ""}`} role="status">{toast.text}</div>}
@@ -170,6 +173,9 @@ function extOf(name) {
   return m ? m[1].toUpperCase() : "파일";
 }
 
+const fileLink = (f, detailUrl) =>
+  `/api/file?u=${encodeURIComponent(f.url)}&n=${encodeURIComponent(f.name)}&d=${encodeURIComponent(detailUrl || "")}`;
+
 function Files({ files, detailUrl }) {
   const [busy, setBusy] = useState(false);
   if (!files.length) {
@@ -182,19 +188,20 @@ function Files({ files, detailUrl }) {
   const all = async () => {
     setBusy(true);
     for (const f of files) {
-      const fr = document.createElement("iframe");
-      fr.style.display = "none";
-      fr.src = f.url;
-      document.body.appendChild(fr);
-      setTimeout(() => fr.remove(), 60_000);
-      await new Promise((r) => setTimeout(r, 800));
+      const a = document.createElement("a");
+      a.href = fileLink(f, detailUrl);
+      a.download = f.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      await new Promise((r) => setTimeout(r, 1200));
     }
     setBusy(false);
   };
   return (
     <div className="files">
       {files.map((f) => (
-        <a key={f.url} className="file" href={f.url} target="_blank" rel="noreferrer" download title={`${f.name} 받기`}>
+        <a key={f.url} className="file" href={fileLink(f, detailUrl)} download={f.name} title={`${f.name} 받기`}>
           <span className="ext">{extOf(f.name)}</span>
           <span className="fname">{f.name}</span>
         </a>
@@ -206,16 +213,65 @@ function Files({ files, detailUrl }) {
   );
 }
 
-function BidRow({ bid: b, onUpdate }) {
-  const d = dday(b.close_at);
-  const [editing, setEditing] = useState(false);
-  const [memo, setMemo] = useState(b.memo || "");
-  const revised = String(b.bid_ord || "").replace(/0/g, "") !== "";
+function Analysis({ bid: b, onAnalyzed, say }) {
+  const [busy, setBusy] = useState(false);
+  const a = b.analysis;
 
-  const saveMemo = () => {
-    setEditing(false);
-    if (memo !== (b.memo || "")) onUpdate(b.key, { memo });
+  const run = async () => {
+    setBusy(true);
+    try {
+      onAnalyzed(b.key, await api("/api/analyze", { method: "POST", body: JSON.stringify({ key: b.key }) }));
+    } catch (e) {
+      say(e.message, true);
+    } finally {
+      setBusy(false);
+    }
   };
+
+  if (!a) {
+    return (
+      <button className="analyze-btn" onClick={run} disabled={busy}>
+        {busy ? "첨부파일 읽고 분석하는 중 (30초 정도)" : "공고 분석하기"}
+      </button>
+    );
+  }
+
+  const list = (items) =>
+    Array.isArray(items) && items.length ? <ul>{items.map((x, i) => <li key={i}>{x}</li>)}</ul> : <p className="na">문서에 없음</p>;
+  const fit = a.fit?.level || "";
+
+  return (
+    <details className="analysis">
+      <summary>
+        {fit && <span className={`fit fit-${fit === "상" ? "hi" : fit === "중" ? "mid" : "lo"}`}>적합도 {fit}</span>}
+        <span className="sum">{a.summary}</span>
+      </summary>
+      <div className="an-body">
+        {a.fit?.reason && <p className="fit-reason">{a.fit.reason}</p>}
+        <h4>주요 업무</h4>{list(a.tasks)}
+        <h4>필요 인력</h4>
+        {Array.isArray(a.staff) && a.staff.length ? (
+          <ul>{a.staff.map((s, i) => <li key={i}><b>{s.role}</b>{s.detail ? ` : ${s.detail}` : ""}</li>)}</ul>
+        ) : <p className="na">문서에 없음</p>}
+        <h4>납품물</h4>{list(a.deliverables)}
+        <h4>사업 기간</h4><p>{a.period || "문서에 없음"}</p>
+        <h4>참가 자격</h4>{list(a.eligibility)}
+        <h4>평가 방식</h4><p>{a.evaluation || "문서에 없음"}</p>
+        <h4>주요 일정</h4>{list(a.schedule)}
+        <h4>유의사항</h4>{list(a.cautions)}
+        <p className="an-src">
+          분석에 사용한 파일: {a.sources?.length ? a.sources.join(", ") : "없음 (공고 정보만으로 분석)"}
+          {a.skipped?.length ? ` · 읽지 못한 파일: ${a.skipped.join(", ")}` : ""}
+        </p>
+        <button className="mini" onClick={run} disabled={busy}>{busy ? "다시 분석하는 중" : "다시 분석"}</button>
+      </div>
+    </details>
+  );
+}
+
+function BidRow({ bid: b, onUpdate, onAnalyzed, say }) {
+  const d = dday(b.close_at);
+  const revised = String(b.bid_ord || "").replace(/0/g, "") !== "";
 
   return (
     <article className={`bid st-${b.status}`}>
@@ -240,18 +296,7 @@ function BidRow({ bid: b, onUpdate }) {
         </div>
 
         <Files files={b.files || []} detailUrl={b.url} />
-
-        {editing ? (
-          <textarea
-            className="field memo-edit" autoFocus value={memo} placeholder="담당자, 준비 사항 등"
-            onChange={(e) => setMemo(e.target.value)} onBlur={saveMemo}
-          />
-        ) : (
-          <>
-            {b.memo && <div className="memo-view">{b.memo}</div>}
-            <button className="memo-toggle" onClick={() => setEditing(true)}>{b.memo ? "메모 수정" : "메모 남기기"}</button>
-          </>
-        )}
+        <Analysis bid={b} onAnalyzed={onAnalyzed} say={say} />
       </div>
 
       <div className="stamps" aria-label="검토 상태">
