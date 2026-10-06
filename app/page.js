@@ -19,7 +19,7 @@ const STAMPS = [
 export default function Home() {
   const [data, setData] = useState(null);
   const [loadErr, setLoadErr] = useState("");
-  const [tab, setTab] = useState("all");
+  const [tab, setTab] = useState("new");
   const [rule, setRule] = useState("");
   const [q, setQ] = useState("");
   const [hideClosed, setHideClosed] = useState(true);
