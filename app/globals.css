@@ -250,6 +250,7 @@ textarea.full { min-height: 64px; resize: vertical; }
   input, textarea { -webkit-user-select: text; user-select: text; }
 }
 
-.subscribe { margin-top: 24px; }
-.subscribe summary { cursor: pointer; font-weight: 500; }
-.subscribe[open] summary { margin-bottom: 10px; }
+.subscribe { margin: 0 0 16px; padding: 14px 16px; border-left: 3px solid var(--indigo); }
+.subscribe h2 { font-size: 15px; margin: 0 0 4px; }
+.sub-how { margin: 0 0 10px; font-size: 14px; color: var(--muted); }
+.sub-how b { color: var(--ink); }

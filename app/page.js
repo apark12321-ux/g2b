@@ -109,6 +109,8 @@ export default function Home() {
         </button>
       </div>
 
+      {data?.topic && <Subscribe topic={data.topic} say={say} />}
+
       <div className="filters">
         <div className="tabs" role="tablist">
           {TABS.map(([id, label]) => (
@@ -141,8 +143,6 @@ export default function Home() {
         {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update} />)}
       </div>
 
-      {data?.topic && <Subscribe topic={data.topic} say={say} />}
-
       {toast && <div className={`toast ${toast.bad ? "bad" : ""}`} role="status">{toast.text}</div>}
     </>
   );
@@ -162,18 +162,15 @@ function Subscribe({ topic, say }) {
     }
   };
   return (
-    <details className="panel subscribe">
-      <summary>휴대폰으로 알림 받기</summary>
-      <ol>
-        <li>휴대폰에 <b>ntfy</b> 앱을 설치합니다.</li>
-        <li>앱에서 <b>+</b>를 누르고 아래 채널 이름을 입력해 구독합니다.</li>
-      </ol>
+    <section className="panel subscribe">
+      <h2>휴대폰으로 알림 받기</h2>
+      <p className="sub-how">휴대폰에 <b>ntfy</b> 앱을 설치하고, 앱에서 <b>+</b>를 눌러 아래 채널 이름을 구독하세요.</p>
       <div className="topic-box">
         <code>{topic}</code>
         <button className="btn" onClick={copy}>복사</button>
         <button className="btn primary" onClick={test}>테스트 알림</button>
       </div>
-    </details>
+    </section>
   );
 }
 
