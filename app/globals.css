@@ -298,3 +298,16 @@ textarea.full { min-height: 64px; resize: vertical; }
 .an-body .na { color: var(--muted); }
 .fit-reason { padding: 8px 10px; border-left: 3px solid var(--indigo); background: var(--sheet); }
 .an-src { margin-top: 12px !important; font-size: 12px; color: var(--muted); }
+
+.an-wait { margin-top: 10px; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.an-err { color: var(--seal); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex-shrink: 0; }
+.dot.on { background: var(--indigo); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+
+/* 첨부파일: 한 줄에 하나, 파일명 전체 표시 */
+.files { flex-direction: column; align-items: flex-start; }
+.file { align-items: flex-start; }
+.file .fname { max-width: none; white-space: normal; overflow: visible; text-overflow: clip; word-break: keep-all; overflow-wrap: anywhere; line-height: 1.45; }
+.file .ext { margin-top: 2px; }
+@media (max-width: 640px) { .file .fname { max-width: none; } }

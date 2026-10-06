@@ -63,6 +63,30 @@ export default function Home() {
   const setAnalysis = (key, analysis) =>
     setData((d) => ({ ...d, bids: d.bids.map((b) => (b.key === key ? { ...b, analysis } : b)) }));
 
+  // 분석이 없는 진행 중 공고를 화면이 열려 있는 동안 하나씩 자동 분석
+  const [working, setWorking] = useState(null);
+  const [failed, setFailed] = useState({});
+  const analyze = useCallback(async (key, force = false) => {
+    setWorking(key);
+    setFailed((f) => { const n = { ...f }; delete n[key]; return n; });
+    try {
+      const a = await api("/api/analyze", { method: "POST", body: JSON.stringify({ key, force }) });
+      setAnalysis(key, a);
+    } catch (e) {
+      setFailed((f) => ({ ...f, [key]: e.message }));
+    } finally {
+      setWorking(null);
+    }
+  }, []);
+  useEffect(() => {
+    if (!data || working) return;
+    const now = Date.now();
+    const next = data.bids.find(
+      (b) => !b.analysis && !failed[b.key] && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
+    );
+    if (next) analyze(next.key);
+  }, [data, working, failed, analyze]);
+
   const update = async (key, patch) => {
     setData((d) => ({ ...d, bids: d.bids.map((b) => (b.key === key ? { ...b, ...patch } : b)) }));
     try {
@@ -143,7 +167,8 @@ export default function Home() {
       )}
 
       <div className="list">
-        {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update} onAnalyzed={setAnalysis} say={say} />)}
+        {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update}
+            an={{ working: working === b.key, error: failed[b.key], retry: (force) => analyze(b.key, force) }} />)}
       </div>
 
       {toast && <div className={`toast ${toast.bad ? "bad" : ""}`} role="status">{toast.text}</div>}
@@ -213,26 +238,23 @@ function Files({ files, detailUrl }) {
   );
 }
 
-function Analysis({ bid: b, onAnalyzed, say }) {
-  const [busy, setBusy] = useState(false);
+function Analysis({ bid: b, an }) {
   const a = b.analysis;
 
-  const run = async () => {
-    setBusy(true);
-    try {
-      onAnalyzed(b.key, await api("/api/analyze", { method: "POST", body: JSON.stringify({ key: b.key }) }));
-    } catch (e) {
-      say(e.message, true);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   if (!a) {
+    if (an.error) {
+      return (
+        <div className="an-wait an-err">
+          공고를 분석하지 못했습니다: {an.error}{" "}
+          <button className="mini" onClick={() => an.retry(false)}>다시 시도</button>
+        </div>
+      );
+    }
     return (
-      <button className="analyze-btn" onClick={run} disabled={busy}>
-        {busy ? "첨부파일 읽고 분석하는 중 (30초 정도)" : "공고 분석하기"}
-      </button>
+      <div className="an-wait">
+        <span className={an.working ? "dot on" : "dot"} aria-hidden />
+        {an.working ? "첨부파일을 읽고 공고를 분석하는 중입니다" : "분석 대기 중"}
+      </div>
     );
   }
 
@@ -263,13 +285,13 @@ function Analysis({ bid: b, onAnalyzed, say }) {
           분석에 사용한 파일: {a.sources?.length ? a.sources.join(", ") : "없음 (공고 정보만으로 분석)"}
           {a.skipped?.length ? ` · 읽지 못한 파일: ${a.skipped.join(", ")}` : ""}
         </p>
-        <button className="mini" onClick={run} disabled={busy}>{busy ? "다시 분석하는 중" : "다시 분석"}</button>
+        <button className="mini" onClick={() => an.retry(true)} disabled={an.working}>{an.working ? "다시 분석하는 중" : "다시 분석"}</button>
       </div>
     </details>
   );
 }
 
-function BidRow({ bid: b, onUpdate, onAnalyzed, say }) {
+function BidRow({ bid: b, onUpdate, an }) {
   const d = dday(b.close_at);
   const revised = String(b.bid_ord || "").replace(/0/g, "") !== "";
 
@@ -296,7 +318,7 @@ function BidRow({ bid: b, onUpdate, onAnalyzed, say }) {
         </div>
 
         <Files files={b.files || []} detailUrl={b.url} />
-        <Analysis bid={b} onAnalyzed={onAnalyzed} say={say} />
+        <Analysis bid={b} an={an} />
       </div>
 
       <div className="stamps" aria-label="검토 상태">
