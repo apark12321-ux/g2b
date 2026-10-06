@@ -126,13 +126,15 @@ export default function Home() {
 
   const base = useMemo(() => {
     if (!data) return [];
-    const words = q.trim().toLowerCase();
+    // 띄어쓰기 무시, 여러 단어는 모두 포함된 공고만
+    const nz = (x) => String(x || "").toLowerCase().replace(/\s+/g, "");
+    const words = q.trim().split(/\s+/).filter(Boolean).map(nz);
     const now = Date.now();
     return data.bids.filter(
       (b) =>
         (!rule || b.matched_rules.includes(rule)) &&
         (!hideClosed || !b.close_at || new Date(b.close_at).getTime() > now) &&
-        (!words || `${b.title} ${b.org || ""} ${b.demand_org || ""}`.toLowerCase().includes(words))
+        (!words.length || words.every((w) => nz(`${b.title}${b.org || ""}${b.demand_org || ""}`).includes(w)))
     );
   }, [data, rule, q, hideClosed]);
 
@@ -173,7 +175,7 @@ export default function Home() {
             </button>
           ))}
         </div>
-        <input className="field search" type="search" placeholder="공고명, 기관 검색" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="field search" type="search" placeholder="모인 공고에서 찾기 (공고명·기관)" value={q} onChange={(e) => setQ(e.target.value)} />
         <label className="check">
           <input type="checkbox" checked={hideClosed} onChange={(e) => setHideClosed(e.target.checked)} />
           마감 지난 공고 숨기기
@@ -292,14 +294,12 @@ function Analysis({ bid: b, an }) {
   const has = (x) => (Array.isArray(x) ? x.length > 0 : !!x && x !== "문서에 없음");
   const list = (items) => <ul>{items.filter((x) => has(x)).map((x, i) => <li key={i}>{x}</li>)}</ul>;
   const staff = (a.staff || []).filter((x) => has(x?.role));
+  const anything = ["tasks", "deliverables", "period", "eligibility", "evaluation", "schedule", "cautions"].some((k) => has(a[k])) || staff.length > 0;
+  if (!anything && a.mode === "basic") return null;
 
   return (
     <div className="analysis">
-      <p className="an-sum">
-        {a.mode === "basic" && <span className="fit fit-basic">자동 추출</span>}
-        {a.summary}
-      </p>
-      {a.note && <p className="an-note">{a.note}</p>}
+      {has(a.summary) && !/AI 요약 아님|찾지 못했습니다/.test(a.summary) && <p className="an-sum">{a.summary}</p>}
       <div className="an-body">
         {has(a.tasks) && <><h4>주요 업무</h4>{list(a.tasks)}</>}
         {staff.length > 0 && (
