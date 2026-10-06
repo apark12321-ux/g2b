@@ -23,8 +23,13 @@ export async function GET(req) {
     return NextResponse.json({ ok: true, message: "테스트 공고를 모두 지웠습니다." });
   }
 
+  // 이전 테스트 공고는 지우고 새로 1건만 만듦
+  await supa.from("bids").delete().like("key", "TEST-%");
+
   const settings = await getSettings();
   const now = Date.now();
+  const site = (process.env.SITE_URL || req.nextUrl.origin).replace(/\/$/, "");
+  const sample = { name: "[샘플] 제안요청서_직무교육 이러닝 콘텐츠 개발.pdf", url: `${site}/sample/rfp-sample.pdf` };
   const row = {
     key: `TEST-${now}`,
     bid_no: "TEST",
@@ -40,14 +45,8 @@ export async function GET(req) {
     keywords: ["이러닝", "콘텐츠 개발"],
     notified_rule_ids: [settings.id],
     status: "new",
-    files: [],
-    analysis: {
-      summary: "알림이 잘 오는지 확인하기 위한 테스트 공고입니다. 실제 공고가 아닙니다.",
-      fit: { level: "중", reason: "테스트용 예시입니다." },
-      tasks: ["이 칸에 실제 공고의 주요 업무가 표시됩니다."],
-      staff: [{ role: "예시 인력", detail: "실제 공고에서는 인원·자격 요건이 표시됩니다." }],
-      sources: [],
-    },
+    files: [sample],
+    analysis: null, // 사이트를 열면 샘플 제안요청서를 읽어 실제와 같은 방식으로 분석
   };
 
   let { error } = await supa.from("bids").insert(row);
@@ -69,6 +68,7 @@ export async function GET(req) {
       ].join("\n"),
       url: row.url,
       bidKey: row.key,
+      fileUrl: `${site}/api/file?u=${encodeURIComponent(sample.url)}&n=${encodeURIComponent(sample.name)}&d=${encodeURIComponent(row.url)}`,
     });
   } catch (e) {
     return NextResponse.json({ ok: false, message: "공고는 만들었지만 알림을 보내지 못했습니다.", error: String(e.message || e) }, { status: 502 });
@@ -76,7 +76,7 @@ export async function GET(req) {
 
   return NextResponse.json({
     ok: true,
-    message: "테스트 공고를 만들고 휴대폰으로 알림을 보냈습니다. 사이트를 새로고침해 보세요.",
+    message: "테스트 공고를 만들고 휴대폰으로 알림을 보냈습니다. 알림의 [분석 보기]를 누르거나 사이트를 새로고침해 보세요.",
     topic: settings.topic,
   });
 }
