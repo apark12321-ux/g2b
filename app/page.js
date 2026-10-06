@@ -132,7 +132,7 @@ export default function Home() {
           {data.bids.length ? (
             <><strong>조건에 맞는 공고가 없습니다</strong>필터를 바꾸거나 마감 지난 공고도 표시해 보세요.</>
           ) : (
-            <><strong>아직 모인 공고가 없습니다</strong>키워드를 등록한 뒤 지금 수집을 눌러 보세요.</>
+            <><strong>아직 모인 공고가 없습니다</strong>지금 수집을 누르면 최근 3일 공고부터 모아 옵니다.</>
           )}
         </div>
       )}
@@ -141,8 +141,39 @@ export default function Home() {
         {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update} />)}
       </div>
 
+      {data?.topic && <Subscribe topic={data.topic} say={say} />}
+
       {toast && <div className={`toast ${toast.bad ? "bad" : ""}`} role="status">{toast.text}</div>}
     </>
+  );
+}
+
+function Subscribe({ topic, say }) {
+  const copy = async () => {
+    await navigator.clipboard.writeText(topic).catch(() => {});
+    say("채널 이름을 복사했습니다.");
+  };
+  const test = async () => {
+    try {
+      await api("/api/keywords/test", { method: "POST" });
+      say("테스트 알림을 보냈습니다. 휴대폰을 확인하세요.");
+    } catch (e) {
+      say(e.message, true);
+    }
+  };
+  return (
+    <details className="panel subscribe">
+      <summary>휴대폰으로 알림 받기</summary>
+      <ol>
+        <li>휴대폰에 <b>ntfy</b> 앱을 설치합니다.</li>
+        <li>앱에서 <b>+</b>를 누르고 아래 채널 이름을 입력해 구독합니다.</li>
+      </ol>
+      <div className="topic-box">
+        <code>{topic}</code>
+        <button className="btn" onClick={copy}>복사</button>
+        <button className="btn primary" onClick={test}>테스트 알림</button>
+      </div>
+    </details>
   );
 }
 

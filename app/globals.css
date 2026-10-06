@@ -241,3 +241,15 @@ textarea.full { min-height: 64px; resize: vertical; }
   flex: 1 1 220px; font-size: 15px; padding: 9px 12px; border: 1px dashed var(--line); border-radius: 8px;
   background: var(--paper); word-break: break-all;
 }
+
+/* ---------- 앱(홈 화면) 실행 시 노치·하단 바 여백 */
+.nav { padding-top: max(12px, env(safe-area-inset-top)); }
+.wrap { padding-bottom: max(80px, env(safe-area-inset-bottom)); }
+@media (display-mode: standalone) {
+  body { -webkit-user-select: none; user-select: none; }
+  input, textarea { -webkit-user-select: text; user-select: text; }
+}
+
+.subscribe { margin-top: 24px; }
+.subscribe summary { cursor: pointer; font-weight: 500; }
+.subscribe[open] summary { margin-bottom: 10px; }

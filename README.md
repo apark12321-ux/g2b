@@ -24,7 +24,6 @@
 | G2B_API_KEY | 공공데이터포털 인증키(Decoding) |
 | G2B_API_URL | 요청주소. 활용신청 화면과 다를 때만 수정 |
 | SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY | Supabase 접속 정보 (외부 노출 금지) |
-| SITE_PASSWORD | 사이트 로그인 비밀번호 |
 | CRON_SECRET | 자동 수집 호출용 비밀값 |
 | SITE_URL | 알림에 '알림판' 버튼을 붙일 사이트 주소 (선택) |
 | LOOKBACK_HOURS | 한 번에 거슬러 조회할 시간, 기본 6 (선택) |
