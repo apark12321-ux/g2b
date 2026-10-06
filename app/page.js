@@ -67,14 +67,21 @@ export default function Home() {
     }
   };
 
-  const setAnalysis = (key, analysis) =>
-    setData((d) => ({ ...d, bids: d.bids.map((b) => (b.key === key ? { ...b, analysis } : b)) }));
+  const setAnalysis = (key, res) => {
+    const { _files, ...analysis } = res || {};
+    setData((d) => ({
+      ...d,
+      bids: d.bids.map((b) => (b.key === key ? { ...b, analysis, ...(_files ? { files: _files } : {}) } : b)),
+    }));
+  };
 
   // 분석이 없는 진행 중 공고를 화면이 열려 있는 동안 하나씩 자동 분석
   const [working, setWorking] = useState(null);
   const [failed, setFailed] = useState({});
+  const [tried, setTried] = useState({}); // 이번 접속에서 이미 확인한 공고
   const analyze = useCallback(async (key, force = false) => {
     setWorking(key);
+    setTried((t) => ({ ...t, [key]: true }));
     setFailed((f) => { const n = { ...f }; delete n[key]; return n; });
     try {
       const a = await api("/api/analyze", { method: "POST", body: JSON.stringify({ key, force }) });
@@ -88,12 +95,14 @@ export default function Home() {
   useEffect(() => {
     if (!data || working) return;
     const now = Date.now();
-    const want = focus && data.bids.find((b) => b.key === focus && !b.analysis && !failed[b.key]);
+    // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
+    const needs = (b) => !tried[b.key] && !failed[b.key] && (!b.analysis || !(b.files || []).length);
+    const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
-      (b) => !b.analysis && !failed[b.key] && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
+      (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
     );
     if (next) analyze(next.key);
-  }, [data, working, failed, analyze, focus]);
+  }, [data, working, failed, tried, analyze, focus]);
 
   // 알림에서 연 공고로 이동
   useEffect(() => {
@@ -202,7 +211,10 @@ function Subscribe({ topic, say }) {
   return (
     <section className="panel subscribe">
       <h2>휴대폰으로 알림 받기</h2>
-      <p className="sub-how">휴대폰에 <b>ntfy</b> 앱을 설치하고, 앱에서 <b>+</b>를 눌러 아래 채널 이름을 구독하세요.</p>
+      <p className="sub-how">
+        휴대폰에 <b>ntfy</b> 앱을 설치하고, 앱에서 <b>+</b>를 눌러 아래 채널 이름을 구독하세요.
+        구독할 때 <b>대기 상태에서 즉시 알림받기</b>만 체크하세요.
+      </p>
       <div className="topic-box">
         <code>{topic}</code>
         <button className="btn" onClick={copy}>복사</button>
@@ -219,8 +231,9 @@ function extOf(name) {
 const fileLink = (f, detailUrl) =>
   `/api/file?u=${encodeURIComponent(f.url)}&n=${encodeURIComponent(f.name)}&d=${encodeURIComponent(detailUrl || "")}`;
 
-function Files({ files, detailUrl }) {
+function Files({ files, detailUrl, loading }) {
   const [busy, setBusy] = useState(false);
+  if (!files.length && loading) return <div className="files"><span className="file-none">첨부파일 목록을 불러오는 중</span></div>;
   if (!files.length) {
     return (
       <div className="files">
@@ -256,7 +269,7 @@ function Files({ files, detailUrl }) {
   );
 }
 
-function Analysis({ bid: b, an, focused }) {
+function Analysis({ bid: b, an }) {
   const a = b.analysis;
 
   if (!a) {
@@ -276,38 +289,38 @@ function Analysis({ bid: b, an, focused }) {
     );
   }
 
-  const list = (items) =>
-    Array.isArray(items) && items.length ? <ul>{items.map((x, i) => <li key={i}>{x}</li>)}</ul> : <p className="na">문서에 없음</p>;
-  const fit = a.fit?.level || "";
+  const has = (x) => (Array.isArray(x) ? x.length > 0 : !!x && x !== "문서에 없음");
+  const list = (items) => <ul>{items.filter((x) => has(x)).map((x, i) => <li key={i}>{x}</li>)}</ul>;
+  const staff = (a.staff || []).filter((x) => has(x?.role));
 
   return (
-    <details className="analysis" open={focused || undefined}>
-      <summary>
+    <div className="analysis">
+      <p className="an-sum">
         {a.mode === "basic" && <span className="fit fit-basic">자동 추출</span>}
-        {fit && <span className={`fit fit-${fit === "상" ? "hi" : fit === "중" ? "mid" : "lo"}`}>적합도 {fit}</span>}
-        <span className="sum">{a.summary}</span>
-      </summary>
+        {a.summary}
+      </p>
+      {a.note && <p className="an-note">{a.note}</p>}
       <div className="an-body">
-        {a.note && <p className="an-note">{a.note}</p>}
-        {a.fit?.reason && <p className="fit-reason">{a.fit.reason}</p>}
-        <h4>주요 업무</h4>{list(a.tasks)}
-        <h4>필요 인력</h4>
-        {Array.isArray(a.staff) && a.staff.length ? (
-          <ul>{a.staff.map((s, i) => <li key={i}><b>{s.role}</b>{s.detail ? ` : ${s.detail}` : ""}</li>)}</ul>
-        ) : <p className="na">문서에 없음</p>}
-        <h4>납품물</h4>{list(a.deliverables)}
-        <h4>사업 기간</h4><p>{a.period || "문서에 없음"}</p>
-        <h4>참가 자격</h4>{list(a.eligibility)}
-        <h4>평가 방식</h4><p>{a.evaluation || "문서에 없음"}</p>
-        <h4>주요 일정</h4>{list(a.schedule)}
-        <h4>유의사항</h4>{list(a.cautions)}
+        {has(a.tasks) && <><h4>주요 업무</h4>{list(a.tasks)}</>}
+        {staff.length > 0 && (
+          <>
+            <h4>필요 인력</h4>
+            <ul>{staff.map((x, i) => <li key={i}>{has(x.detail) ? <><b>{x.role}</b> : {x.detail}</> : x.role}</li>)}</ul>
+          </>
+        )}
+        {has(a.deliverables) && <><h4>납품물</h4>{list(a.deliverables)}</>}
+        {has(a.period) && <><h4>사업 기간</h4><p>{a.period}</p></>}
+        {has(a.eligibility) && <><h4>참가 자격</h4>{list(a.eligibility)}</>}
+        {has(a.evaluation) && <><h4>평가 방식</h4><p>{a.evaluation}</p></>}
+        {has(a.schedule) && <><h4>주요 일정</h4>{list(a.schedule)}</>}
+        {has(a.cautions) && <><h4>유의사항</h4>{list(a.cautions)}</>}
         <p className="an-src">
           분석에 사용한 파일: {a.sources?.length ? a.sources.join(", ") : "없음 (공고 정보만으로 분석)"}
           {a.skipped?.length ? ` · 읽지 못한 파일: ${a.skipped.join(", ")}` : ""}
+          {" "}<button className="mini" onClick={() => an.retry(true)} disabled={an.working}>{an.working ? "다시 분석하는 중" : "다시 분석"}</button>
         </p>
-        <button className="mini" onClick={() => an.retry(true)} disabled={an.working}>{an.working ? "다시 분석하는 중" : "다시 분석"}</button>
       </div>
-    </details>
+    </div>
   );
 }
 
@@ -337,8 +350,8 @@ function BidRow({ bid: b, onUpdate, an, focused }) {
           {b.keywords.map((k) => <span key={k} className="chip by-rule">{k}</span>)}
         </div>
 
-        <Files files={b.files || []} detailUrl={b.url} />
-        <Analysis bid={b} an={an} focused={focused} />
+        <Files files={b.files || []} detailUrl={b.url} loading={an.working} />
+        <Analysis bid={b} an={an} />
       </div>
 
       <div className="stamps" aria-label="검토 상태">
