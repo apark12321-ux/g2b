@@ -50,7 +50,9 @@ export default function Home() {
     setCollecting(true);
     try {
       const r = await api("/api/collect", { method: "POST" });
-      say(`수집했습니다. 공고 ${r.fetched}건 중 새 알림 ${r.sent}건`);
+      if (r.failed) say(`새 공고 알림 ${r.failed}건을 보내지 못했습니다. 휴대폰 알림 채널 이름을 확인하세요.`, true);
+      else if (r.sent) say(`새 관련 공고 ${r.sent}건을 휴대폰으로 알렸습니다.`);
+      else say(`공고 ${r.fetched}건을 확인했고, 새로 올라온 관련 공고는 없습니다.`);
       await load();
     } catch (e) {
       say(e.message, true);
@@ -127,7 +129,7 @@ export default function Home() {
             <div className={`run ${run.error ? "bad" : ""}`}>
               {run.error
                 ? `마지막 수집 실패 (${at(run.ran_at)}): ${run.error}`
-                : `마지막 수집 ${at(run.ran_at)}, 공고 ${run.fetched}건 확인, 새 알림 ${run.sent}건`}
+                : `마지막 수집 ${at(run.ran_at)}, 공고 ${run.fetched}건 확인, 새 알림 ${run.sent}건${run.failed ? `, 알림 실패 ${run.failed}건` : ""}`}
             </div>
           )}
         </div>
