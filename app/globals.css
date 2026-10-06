@@ -215,3 +215,29 @@ textarea.full { min-height: 64px; resize: vertical; }
   .rule-row { flex-direction: column; }
   .rule-btns { width: 100%; }
 }
+
+/* ---------- 키워드 화면 */
+.panel { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 12px; }
+.panel h2 { font-size: 16px; margin: 0 0 6px; }
+.word-input { display: flex; gap: 8px; }
+.word-input .field { flex: 1; font-size: 16px; }
+.words { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.word {
+  display: inline-flex; align-items: center; gap: 4px; padding: 5px 6px 5px 12px; border-radius: 999px;
+  background: color-mix(in srgb, var(--indigo) 12%, transparent); color: var(--indigo); font-weight: 500; font-size: 14px;
+}
+.word.muted { background: var(--paper); color: var(--muted); }
+.word button {
+  border: 0; background: none; color: inherit; cursor: pointer; font-size: 16px; line-height: 1;
+  width: 22px; height: 22px; border-radius: 50%; opacity: .7;
+}
+.word button:hover { opacity: 1; background: color-mix(in srgb, currentColor 15%, transparent); }
+.exclude { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); }
+.more { margin-top: 14px; }
+.subscribe ol { margin: 4px 0 12px; padding-left: 20px; color: var(--muted); font-size: 14px; }
+.subscribe ol b { color: var(--ink); }
+.topic-box { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.topic-box code {
+  flex: 1 1 220px; font-size: 15px; padding: 9px 12px; border: 1px dashed var(--line); border-radius: 8px;
+  background: var(--paper); word-break: break-all;
+}

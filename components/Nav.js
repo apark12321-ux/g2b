@@ -18,7 +18,7 @@ export default function Nav() {
       </Link>
       <nav className="nav-links">
         <Link href="/" className={path === "/" ? "on" : ""}>공고</Link>
-        <Link href="/rules" className={path === "/rules" ? "on" : ""}>알림 규칙</Link>
+        <Link href="/rules" className={path === "/rules" ? "on" : ""}>키워드</Link>
         <button className="link-btn" onClick={logout}>로그아웃</button>
       </nav>
     </header>

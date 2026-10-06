@@ -117,10 +117,6 @@ export default function Home() {
             </button>
           ))}
         </div>
-        <select className="field" value={rule} onChange={(e) => setRule(e.target.value)} aria-label="알림 규칙">
-          <option value="">모든 규칙</option>
-          {data?.ruleNames.map((n) => <option key={n} value={n}>{n}</option>)}
-        </select>
         <input className="field search" type="search" placeholder="공고명, 기관 검색" value={q} onChange={(e) => setQ(e.target.value)} />
         <label className="check">
           <input type="checkbox" checked={hideClosed} onChange={(e) => setHideClosed(e.target.checked)} />
@@ -136,7 +132,7 @@ export default function Home() {
           {data.bids.length ? (
             <><strong>조건에 맞는 공고가 없습니다</strong>필터를 바꾸거나 마감 지난 공고도 표시해 보세요.</>
           ) : (
-            <><strong>아직 모인 공고가 없습니다</strong>알림 규칙을 확인한 뒤 지금 수집을 눌러 보세요.</>
+            <><strong>아직 모인 공고가 없습니다</strong>키워드를 등록한 뒤 지금 수집을 눌러 보세요.</>
           )}
         </div>
       )}
@@ -180,8 +176,7 @@ function BidRow({ bid: b, onUpdate }) {
           <span>게시 {at(b.posted_at)}</span>
         </div>
         <div className="chips">
-          {b.matched_rules.map((r) => <span key={r} className="chip by-rule">{r}</span>)}
-          {b.keywords.map((k) => <span key={k} className="chip">{k}</span>)}
+          {b.keywords.map((k) => <span key={k} className="chip by-rule">{k}</span>)}
         </div>
 
         {editing ? (
