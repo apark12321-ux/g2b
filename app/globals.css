@@ -194,3 +194,24 @@ textarea.full { min-height: 64px; resize: vertical; }
   .brand-text { display: none; }
   .nav-links a, .link-btn { padding: 6px 8px; }
 }
+
+/* ---------- 규칙 목록 (보기 모드) */
+.rules { display: flex; flex-direction: column; gap: 8px; }
+.rules .rule { margin-bottom: 0; }
+.rule-row {
+  display: flex; gap: 16px; align-items: flex-start; justify-content: space-between;
+  background: var(--sheet); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px;
+}
+.rule-row.off { opacity: .6; }
+.rule-main { min-width: 0; }
+.rule-title { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.rule-title + .chips { margin-top: 6px; }
+.off-tag { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; }
+.rule-sub { font-size: 13px; color: var(--muted); margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rule-sub code { font-size: 12px; background: var(--paper); padding: 1px 6px; border-radius: 4px; word-break: break-all; }
+.mini { border: 0; background: none; color: var(--indigo); cursor: pointer; font-size: 13px; padding: 0; }
+.rule-btns { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+@media (max-width: 640px) {
+  .rule-row { flex-direction: column; }
+  .rule-btns { width: 100%; }
+}
