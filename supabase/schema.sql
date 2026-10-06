@@ -53,3 +53,6 @@ insert into rules (name, topic, include, exclude) values
  ('AI·교육 운영', 'bid-aiedu-change-me-3m8x1',
   array['AI 교육','인공지능 교육','디지털 교육','교육 운영','연수 운영','교육과정 개발'],
   array['급식','청소']);
+
+-- v10: 첨부파일 목록
+alter table bids add column if not exists files jsonb not null default '[]';

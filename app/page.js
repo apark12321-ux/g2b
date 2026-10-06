@@ -153,14 +153,6 @@ function Subscribe({ topic, say }) {
     await navigator.clipboard.writeText(topic).catch(() => {});
     say("채널 이름을 복사했습니다.");
   };
-  const test = async () => {
-    try {
-      await api("/api/keywords/test", { method: "POST" });
-      say("테스트 알림을 보냈습니다. 휴대폰을 확인하세요.");
-    } catch (e) {
-      say(e.message, true);
-    }
-  };
   return (
     <section className="panel subscribe">
       <h2>휴대폰으로 알림 받기</h2>
@@ -168,9 +160,49 @@ function Subscribe({ topic, say }) {
       <div className="topic-box">
         <code>{topic}</code>
         <button className="btn" onClick={copy}>복사</button>
-        <button className="btn primary" onClick={test}>테스트 알림</button>
       </div>
     </section>
+  );
+}
+
+function extOf(name) {
+  const m = String(name).match(/\.([a-z0-9]{2,5})$/i);
+  return m ? m[1].toUpperCase() : "파일";
+}
+
+function Files({ files, detailUrl }) {
+  const [busy, setBusy] = useState(false);
+  if (!files.length) {
+    return (
+      <div className="files">
+        <a className="file-none" href={detailUrl} target="_blank" rel="noreferrer">첨부파일은 나라장터 공고에서 확인</a>
+      </div>
+    );
+  }
+  const all = async () => {
+    setBusy(true);
+    for (const f of files) {
+      const fr = document.createElement("iframe");
+      fr.style.display = "none";
+      fr.src = f.url;
+      document.body.appendChild(fr);
+      setTimeout(() => fr.remove(), 60_000);
+      await new Promise((r) => setTimeout(r, 800));
+    }
+    setBusy(false);
+  };
+  return (
+    <div className="files">
+      {files.map((f) => (
+        <a key={f.url} className="file" href={f.url} target="_blank" rel="noreferrer" download title={`${f.name} 받기`}>
+          <span className="ext">{extOf(f.name)}</span>
+          <span className="fname">{f.name}</span>
+        </a>
+      ))}
+      {files.length > 1 && (
+        <button className="file-all" onClick={all} disabled={busy}>{busy ? "받는 중" : `전체 받기 (${files.length})`}</button>
+      )}
+    </div>
   );
 }
 
@@ -206,6 +238,8 @@ function BidRow({ bid: b, onUpdate }) {
         <div className="chips">
           {b.keywords.map((k) => <span key={k} className="chip by-rule">{k}</span>)}
         </div>
+
+        <Files files={b.files || []} detailUrl={b.url} />
 
         {editing ? (
           <textarea
