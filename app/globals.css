@@ -311,3 +311,6 @@ textarea.full { min-height: 64px; resize: vertical; }
 .file .fname { max-width: none; white-space: normal; overflow: visible; text-overflow: clip; word-break: keep-all; overflow-wrap: anywhere; line-height: 1.45; }
 .file .ext { margin-top: 2px; }
 @media (max-width: 640px) { .file .fname { max-width: none; } }
+
+/* 알림에서 연 공고 강조 */
+.bid.focused { border-color: var(--indigo); box-shadow: 0 0 0 2px color-mix(in srgb, var(--indigo) 25%, transparent); scroll-margin-top: 70px; }

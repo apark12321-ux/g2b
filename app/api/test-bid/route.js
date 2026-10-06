@@ -68,6 +68,7 @@ export async function GET(req) {
         "키워드: 이러닝, 콘텐츠 개발",
       ].join("\n"),
       url: row.url,
+      bidKey: row.key,
     });
   } catch (e) {
     return NextResponse.json({ ok: false, message: "공고는 만들었지만 알림을 보내지 못했습니다.", error: String(e.message || e) }, { status: 502 });

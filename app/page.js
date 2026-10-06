@@ -23,6 +23,11 @@ export default function Home() {
   const [rule, setRule] = useState("");
   const [q, setQ] = useState("");
   const [hideClosed, setHideClosed] = useState(true);
+  const [focus, setFocus] = useState(null);
+  useEffect(() => {
+    const k = new URLSearchParams(window.location.search).get("bid");
+    if (k) setFocus(k);
+  }, []);
   const [collecting, setCollecting] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -83,11 +88,22 @@ export default function Home() {
   useEffect(() => {
     if (!data || working) return;
     const now = Date.now();
-    const next = data.bids.find(
+    const want = focus && data.bids.find((b) => b.key === focus && !b.analysis && !failed[b.key]);
+    const next = want || data.bids.find(
       (b) => !b.analysis && !failed[b.key] && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
     );
     if (next) analyze(next.key);
-  }, [data, working, failed, analyze]);
+  }, [data, working, failed, analyze, focus]);
+
+  // 알림에서 연 공고로 이동
+  useEffect(() => {
+    if (!focus || !data) return;
+    const b = data.bids.find((x) => x.key === focus);
+    if (!b) return;
+    setTab("all");
+    if (b.close_at && new Date(b.close_at).getTime() < Date.now()) setHideClosed(false);
+    setTimeout(() => document.getElementById(`bid-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
+  }, [focus, data?.bids?.length]);
 
   const update = async (key, patch) => {
     setData((d) => ({ ...d, bids: d.bids.map((b) => (b.key === key ? { ...b, ...patch } : b)) }));
@@ -169,7 +185,7 @@ export default function Home() {
       )}
 
       <div className="list">
-        {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update}
+        {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key}
             an={{ working: working === b.key, error: failed[b.key], retry: (force) => analyze(b.key, force) }} />)}
       </div>
 
@@ -240,7 +256,7 @@ function Files({ files, detailUrl }) {
   );
 }
 
-function Analysis({ bid: b, an }) {
+function Analysis({ bid: b, an, focused }) {
   const a = b.analysis;
 
   if (!a) {
@@ -265,7 +281,7 @@ function Analysis({ bid: b, an }) {
   const fit = a.fit?.level || "";
 
   return (
-    <details className="analysis">
+    <details className="analysis" open={focused || undefined}>
       <summary>
         {fit && <span className={`fit fit-${fit === "상" ? "hi" : fit === "중" ? "mid" : "lo"}`}>적합도 {fit}</span>}
         <span className="sum">{a.summary}</span>
@@ -293,12 +309,12 @@ function Analysis({ bid: b, an }) {
   );
 }
 
-function BidRow({ bid: b, onUpdate, an }) {
+function BidRow({ bid: b, onUpdate, an, focused }) {
   const d = dday(b.close_at);
   const revised = String(b.bid_ord || "").replace(/0/g, "") !== "";
 
   return (
-    <article className={`bid st-${b.status}`}>
+    <article id={`bid-${b.key}`} className={`bid st-${b.status} ${focused ? "focused" : ""}`}>
       <div className={`dday ${d.tone}`} title={`입찰마감 ${when(b.close_at)}`}>
         <b>{d.big}</b>
         <small>{d.small || when(b.close_at).replace(/\s\d{2}:\d{2}$/, "")}</small>
@@ -320,7 +336,7 @@ function BidRow({ bid: b, onUpdate, an }) {
         </div>
 
         <Files files={b.files || []} detailUrl={b.url} />
-        <Analysis bid={b} an={an} />
+        <Analysis bid={b} an={an} focused={focused} />
       </div>
 
       <div className="stamps" aria-label="검토 상태">
