@@ -314,3 +314,5 @@ textarea.full { min-height: 64px; resize: vertical; }
 
 /* 알림에서 연 공고 강조 */
 .bid.focused { border-color: var(--indigo); box-shadow: 0 0 0 2px color-mix(in srgb, var(--indigo) 25%, transparent); scroll-margin-top: 70px; }
+.fit-basic { background: var(--muted); }
+.an-note { font-size: 12px; color: var(--muted); margin-bottom: 4px !important; }

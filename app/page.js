@@ -283,10 +283,12 @@ function Analysis({ bid: b, an, focused }) {
   return (
     <details className="analysis" open={focused || undefined}>
       <summary>
+        {a.mode === "basic" && <span className="fit fit-basic">자동 추출</span>}
         {fit && <span className={`fit fit-${fit === "상" ? "hi" : fit === "중" ? "mid" : "lo"}`}>적합도 {fit}</span>}
         <span className="sum">{a.summary}</span>
       </summary>
       <div className="an-body">
+        {a.note && <p className="an-note">{a.note}</p>}
         {a.fit?.reason && <p className="fit-reason">{a.fit.reason}</p>}
         <h4>주요 업무</h4>{list(a.tasks)}
         <h4>필요 인력</h4>
