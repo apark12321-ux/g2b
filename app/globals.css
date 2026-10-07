@@ -653,3 +653,9 @@ ul.pc ul.ev { margin: 3px 0 0 28px; padding: 0; list-style: none; font-size: 12p
 .sc-note { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
 .sc-days span { white-space: nowrap; position: relative; padding-top: 14px; }
 .sc-days span.m1::before { content: attr(data-m); position: absolute; top: 0; left: 2px; font-weight: 700; color: var(--ink); font-size: 10.5px; }
+/* 인쇄 버튼: 머리말 첫 줄 (점수 도장과 겹치지 않게) */
+.rp-kicker { flex-wrap: wrap; position: relative; z-index: 2; }
+.rp-print { letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--indigo); background: var(--sheet); border: 1px solid var(--indigo); border-radius: 4px; padding: 2px 10px; cursor: pointer; }
+.rp-print:hover { background: var(--indigo); color: #fff; }
+.rp-stamp { pointer-events: none; }
+@media print { .rp-print { display: none !important; } }

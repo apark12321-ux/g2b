@@ -814,17 +814,17 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
             if (hasRfp) return <span className="rfp ng">제안요청서 미분석</span>;
             return a ? <span className="rfp ng">제안요청서 없음</span> : null;
           })()}
+          {r && !an.working && (
+            <button type="button" className="rp-print" onClick={() => {
+              const el = document.getElementById(`bid-${b.key}`);
+              document.body.dataset.print = "1";
+              if (el) el.dataset.printMe = "1";
+              const done = () => { delete document.body.dataset.print; if (el) delete el.dataset.printMe; window.removeEventListener("afterprint", done); };
+              window.addEventListener("afterprint", done);
+              setTimeout(() => window.print(), 50);
+            }}>인쇄 · PDF 저장</button>
+          )}
         </div>
-        {r && !an.working && (
-          <button className="mini rp-open" onClick={() => {
-            const el = document.getElementById(`bid-${b.key}`);
-            document.body.dataset.print = "1";
-            if (el) el.dataset.printMe = "1";
-            const done = () => { delete document.body.dataset.print; if (el) delete el.dataset.printMe; window.removeEventListener("afterprint", done); };
-            window.addEventListener("afterprint", done);
-            window.print();
-          }}>인쇄 · PDF</button>
-        )}
         <a className="rp-title" href={b.url} target="_blank" rel="noreferrer">
           {(a?.video?.only ?? titleVideoOnly(b.title)) ? <span className="prio only">영상 제작</span>
             : a?.video?.priority && <span className="prio">교수설계+영상</span>}
