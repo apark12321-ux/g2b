@@ -71,3 +71,6 @@ create table if not exists push_subs (
 create table if not exists app_settings (key text primary key, value text not null);
 alter table push_subs enable row level security;
 alter table app_settings enable row level security;
+
+-- 참가가능지역
+alter table bids add column if not exists region text;

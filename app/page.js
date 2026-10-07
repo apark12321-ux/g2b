@@ -509,6 +509,7 @@ function BidRow({ bid: b, onUpdate, an, focused, detail, say, section }) {
           <span>{b.org || "-"}{b.demand_org && b.demand_org !== b.org ? ` (수요 ${b.demand_org})` : ""}</span>
           <span className="price" title={b.price ? `${b.price.toLocaleString("ko-KR")}원` : ""}>{money(b.price)}</span>
           <span>마감 {when(b.close_at)}</span>
+          {b.region && b.region !== "전국" && <span className="region">참가지역 {b.region}</span>}
           <span>게시 {at(b.posted_at)}</span>
         </div>
         <div className="chips">

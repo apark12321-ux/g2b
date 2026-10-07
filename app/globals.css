@@ -432,3 +432,4 @@ textarea.full { min-height: 64px; resize: vertical; }
 .toggle.is-on .knob { left: 39px; }
 .toggle.is-on .tlabel { left: 10px; right: auto; color: #fff; }
 .toggle:disabled { opacity: .5; cursor: default; }
+.meta .region { color: var(--indigo); font-weight: 500; }
