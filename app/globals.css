@@ -414,3 +414,6 @@ textarea.full { min-height: 64px; resize: vertical; }
 .brand-seal { width: 34px; height: 34px; font-size: 15px; }
 .brand-co { font-size: 12px; color: var(--muted); white-space: nowrap; }
 @media (max-width: 480px) { .brand-name { font-size: 18px; } .brand-seal { width: 30px; height: 30px; } }
+.brand-logo { height: 14px; width: auto; display: block; opacity: .9; }
+@media (prefers-color-scheme: dark) { .brand-logo { filter: brightness(0) invert(1); opacity: .8; } }
+@media (max-width: 480px) { .brand-logo { height: 12px; } }
