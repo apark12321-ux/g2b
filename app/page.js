@@ -16,6 +16,14 @@ const STAMPS = [
   ["pass", "패스"],
 ];
 
+// 마감까지 5일 이내 남은 공고 (준비 기간 부족으로 패스)
+const SKIP_DAYS = 5;
+const soon = (b) => {
+  if (!b.close_at) return false;
+  const left = new Date(b.close_at).getTime() - Date.now();
+  return left > 0 && left < SKIP_DAYS * 864e5; // 이미 마감된 공고는 '마감 지난 공고 숨기기'가 따로 처리
+};
+
 export default function Home() {
   const [data, setData] = useState(null);
   const [loadErr, setLoadErr] = useState("");
@@ -23,6 +31,7 @@ export default function Home() {
   const [rule, setRule] = useState("");
   const [q, setQ] = useState("");
   const [hideClosed, setHideClosed] = useState(true);
+  const [showLow, setShowLow] = useState(false); // 영상 비중 낮은 공고 보기
   const [focus, setFocus] = useState(null);
   useEffect(() => {
     const k = new URLSearchParams(window.location.search).get("bid");
@@ -96,7 +105,7 @@ export default function Home() {
     if (!data || working) return;
     const now = Date.now();
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
-    const needs = (b) => !tried[b.key] && !failed[b.key] && (!b.analysis || !(b.files || []).length);
+    const needs = (b) => !tried[b.key] && !failed[b.key] && (focus === b.key || !soon(b)) && (!b.analysis || !b.analysis.video || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -130,13 +139,19 @@ export default function Home() {
     const nz = (x) => String(x || "").toLowerCase().replace(/\s+/g, "");
     const words = q.trim().split(/\s+/).filter(Boolean).map(nz);
     const now = Date.now();
-    return data.bids.filter(
+    const list = data.bids.filter(
       (b) =>
         (!rule || b.matched_rules.includes(rule)) &&
+        (showLow || focus === b.key || !b.analysis?.video?.low) &&
+        (focus === b.key || !soon(b)) &&
         (!hideClosed || !b.close_at || new Date(b.close_at).getTime() > now) &&
         (!words.length || words.every((w) => nz(`${b.title}${b.org || ""}${b.demand_org || ""}`).includes(w)))
     );
-  }, [data, rule, q, hideClosed]);
+    // 교수설계+영상 공고를 맨 위로
+    const p = (b) => (b.analysis?.video?.priority ? 0 : 1);
+    return list.map((b, i) => [b, i]).sort((x, y) => p(x[0]) - p(y[0]) || x[1] - y[1]).map((x) => x[0]);
+  }, [data, rule, q, hideClosed, showLow, focus]);
+  const lowCount = useMemo(() => (data ? data.bids.filter((b) => b.analysis?.video?.low).length : 0), [data]);
 
   const counts = useMemo(() => {
     const c = { all: base.length, new: 0, review: 0, join: 0, pass: 0 };
@@ -160,9 +175,6 @@ export default function Home() {
             </div>
           )}
         </div>
-        <button className="btn primary" onClick={collect} disabled={collecting}>
-          {collecting ? "수집 중" : "지금 수집"}
-        </button>
       </div>
 
       {data?.topic && <Subscribe topic={data.topic} say={say} />}
@@ -190,8 +202,15 @@ export default function Home() {
           {data.bids.length ? (
             <><strong>조건에 맞는 공고가 없습니다</strong>필터를 바꾸거나 마감 지난 공고도 표시해 보세요.</>
           ) : (
-            <><strong>아직 모인 공고가 없습니다</strong>지금 수집을 누르면 최근 3일 공고부터 모아 옵니다.</>
+            <><strong>아직 모인 공고가 없습니다</strong>10분마다 자동으로 수집합니다. 잠시 후 다시 확인해 주세요.</>
           )}
+        </div>
+      )}
+
+      {lowCount > 0 && (
+        <div className="low-toggle">
+          영상 비중이 낮은 공고 {lowCount}건을 {showLow ? "함께 보고 있습니다." : "숨겼습니다."}
+          <button className="mini" onClick={() => setShowLow(!showLow)}>{showLow ? "다시 숨기기" : "보기"}</button>
         </div>
       )}
 
@@ -199,6 +218,11 @@ export default function Home() {
         {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key}
             an={{ working: working === b.key, error: failed[b.key], retry: (force) => analyze(b.key, force) }} />)}
       </div>
+
+      <footer className="page-foot">
+        10분마다 자동으로 수집합니다.
+        <button className="foot-link" onClick={collect} disabled={collecting}>{collecting ? "수집 중" : "수동 수집"}</button>
+      </footer>
 
       {toast && <div className={`toast ${toast.bad ? "bad" : ""}`} role="status">{toast.text}</div>}
     </>
@@ -294,31 +318,46 @@ function Analysis({ bid: b, an }) {
   const has = (x) => (Array.isArray(x) ? x.length > 0 : !!x && x !== "문서에 없음");
   const list = (items) => <ul>{items.filter((x) => has(x)).map((x, i) => <li key={i}>{x}</li>)}</ul>;
   const staff = (a.staff || []).filter((x) => has(x?.role));
-  const anything = ["tasks", "deliverables", "period", "eligibility", "evaluation", "schedule", "cautions"].some((k) => has(a[k])) || staff.length > 0;
+  const anything = ["tasks", "deliverables", "period", "eligibility", "evaluation", "presentation", "schedule", "cautions"].some((k) => has(a[k])) || staff.length > 0;
   if (!anything && a.mode === "basic") return null;
+
+  const short = (x, n = 70) => (x.length > n ? x.slice(0, n - 1) + "…" : x);
+  const meta = [
+    has(a.period) && ["기간", a.period.replace(/^\S*기간\s*[:：]?\s*/, "")],
+    staff.length > 0 && ["인력", staff.map((x) => short(has(x.detail) ? `${x.role}(${x.detail})` : x.role, 40)).join(", ")],
+    has(a.eligibility) && ["자격", a.eligibility.slice(0, 2).map((x) => short(x)).join(" / ")],
+    has(a.evaluation) && ["평가", short(a.evaluation, 90)],
+    has(a.schedule) && ["일정", a.schedule.slice(0, 2).join(" / ")],
+  ].filter(Boolean);
 
   return (
     <div className="analysis">
       {has(a.summary) && !/AI 요약 아님|찾지 못했습니다/.test(a.summary) && <p className="an-sum">{a.summary}</p>}
-      <div className="an-body">
-        {has(a.tasks) && <><h4>주요 업무</h4>{list(a.tasks)}</>}
-        {staff.length > 0 && (
-          <>
-            <h4>필요 인력</h4>
-            <ul>{staff.map((x, i) => <li key={i}>{has(x.detail) ? <><b>{x.role}</b> : {x.detail}</> : x.role}</li>)}</ul>
-          </>
-        )}
-        {has(a.deliverables) && <><h4>납품물</h4>{list(a.deliverables)}</>}
-        {has(a.period) && <><h4>사업 기간</h4><p>{a.period}</p></>}
-        {has(a.eligibility) && <><h4>참가 자격</h4>{list(a.eligibility)}</>}
-        {has(a.evaluation) && <><h4>평가 방식</h4><p>{a.evaluation}</p></>}
-        {has(a.schedule) && <><h4>주요 일정</h4>{list(a.schedule)}</>}
-        {has(a.cautions) && <><h4>유의사항</h4>{list(a.cautions)}</>}
-        <p className="an-src">
-          분석에 사용한 파일: {a.sources?.length ? a.sources.join(", ") : "없음 (공고 정보만으로 분석)"}
-          {a.skipped?.length ? ` · 읽지 못한 파일: ${a.skipped.join(", ")}` : ""}
-          {" "}<button className="mini" onClick={() => an.retry(true)} disabled={an.working}>{an.working ? "다시 분석하는 중" : "다시 분석"}</button>
-        </p>
+      <div className="an-main">
+        <div>
+          <h4>하는 일</h4>
+          {has(a.tasks) ? list(a.tasks.slice(0, 6)) : <p className="na">문서에서 찾지 못함</p>}
+        </div>
+        <div>
+          <h4>최종 납품물</h4>
+          {has(a.deliverables) ? list(a.deliverables.slice(0, 6)) : <p className="na">문서에서 찾지 못함</p>}
+        </div>
+      </div>
+      {has(a.presentation) && (
+        <div className="an-present">
+          <h4>발표 조건</h4>
+          {list(a.presentation.slice(0, 4))}
+        </div>
+      )}
+      {meta.length > 0 && (
+        <dl className="an-meta">
+          {meta.map(([k, v]) => (
+            <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
+          ))}
+        </dl>
+      )}
+      <div className="an-foot">
+        <button className="mini" onClick={() => an.retry(true)} disabled={an.working}>{an.working ? "다시 분석하는 중" : "다시 분석"}</button>
       </div>
     </div>
   );
@@ -337,6 +376,7 @@ function BidRow({ bid: b, onUpdate, an, focused }) {
 
       <div className="body">
         <a className="title" href={b.url} target="_blank" rel="noreferrer">
+          {b.analysis?.video?.priority && <span className="prio">교수설계+영상</span>}
           {revised && <span className="revised">정정</span>}
           {b.title}
         </a>

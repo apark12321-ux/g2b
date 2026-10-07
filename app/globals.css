@@ -322,3 +322,27 @@ textarea.full { min-height: 64px; resize: vertical; }
 .an-sum { margin: 0 0 4px; font-size: 14px; line-height: 1.55; font-weight: 500; }
 .analysis .an-body { padding: 0; }
 .an-src .mini { margin-left: 4px; }
+
+/* ---------- 분석: 하는 일 / 최종 납품물 중심 */
+.an-main { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 6px; }
+.an-main h4, .an-present h4 { margin: 4px 0 4px; font-size: 13px; color: var(--ink); font-weight: 700; }
+.an-main ul, .an-present ul { margin: 0; padding-left: 18px; font-size: 14px; }
+.an-main li, .an-present li { margin: 2px 0; }
+.an-main .na { margin: 0; color: var(--muted); font-size: 13px; }
+.an-present { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.an-meta { margin: 10px 0 0; padding-top: 8px; border-top: 1px dashed var(--line); display: grid; gap: 3px; font-size: 13px; }
+.an-meta div { display: flex; gap: 8px; }
+.an-meta dt { flex: 0 0 34px; color: var(--muted); font-weight: 700; }
+.an-meta dd { margin: 0; color: var(--ink); }
+.an-foot { margin-top: 6px; text-align: right; }
+@media (max-width: 640px) { .an-main { grid-template-columns: 1fr; gap: 8px; } }
+
+/* 교수설계+영상 우선 공고 */
+.prio { display: inline-block; font-size: 12px; font-weight: 700; color: #fff; background: var(--seal); border-radius: 4px; padding: 1px 7px; margin-right: 6px; vertical-align: 2px; }
+.low-toggle { margin: 4px 0 12px; font-size: 13px; color: var(--muted); }
+.low-toggle button { margin-left: 6px; }
+
+/* 수동 수집: 맨 아래 작은 글씨 */
+.page-foot { margin-top: 28px; text-align: center; font-size: 12px; color: var(--muted); }
+.foot-link { margin-left: 8px; border: 0; background: none; padding: 0; font-size: 12px; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; opacity: .7; }
+.foot-link:disabled { cursor: progress; }
