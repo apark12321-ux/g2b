@@ -896,3 +896,20 @@ ul.pc > li.ok .ci em { color: var(--pass); }
 .hb { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; background: var(--pass); }
 .hb.on { background: #2e7d4f; box-shadow: 0 0 0 3px color-mix(in srgb, #2e7d4f 20%, transparent); }
 .hb.err, .hb.off { background: var(--seal); }
+/* 일정표 날짜 칩: 휴대폰에서만 */
+.sc-dates { display: none; }
+@media (max-width: 640px) {
+  .sc-dates { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 2px; }
+  .sc-dates span { font-size: 11.5px; font-weight: 600; border-radius: 4px; padding: 2px 6px; white-space: nowrap; background: var(--paper); color: var(--muted); border: 1px solid var(--line); }
+  .sc-dates .d-q { color: var(--ink); }
+  .sc-dates .d-c { color: #fff; background: var(--ink); border-color: var(--ink); }
+  .sc-dates .d-c em { font-style: normal; color: #ffd27a; margin-left: 2px; }
+  .sc-dates .d-s { color: #fff; background: var(--indigo); border-color: var(--indigo); }
+  .sc-dates .d-p { color: #fff; background: #b7791f; border-color: #b7791f; }
+  .sc-dates .d-p.est { color: #b7791f; background: var(--sheet); border: 1px dashed #b7791f; }
+  .sc-label small { display: none; } /* 날짜 칩과 중복되는 줄은 숨김, 기관명은 아래에서 */
+  .sc-label::after { content: attr(data-org); grid-column: 2; font-size: 11px; color: var(--muted); }
+  .sc-pin { display: none; } /* 막대 위 겹치는 표시 대신 날짜 칩으로 */
+  .sc-bar { top: 13px; height: 10px; }
+  .sc-track { height: 26px; }
+}

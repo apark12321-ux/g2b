@@ -649,7 +649,7 @@ function ScheduleBoard({ bids, model, onOpen }) {
   const days = [...Array(DAYS)].map((_, i) => new Date(start.getTime() + i * DAYMS));
 
   const Label = ({ b, extra }) => (
-    <button className="sc-label" onClick={() => onOpen(b)} title={b.title}>
+    <button className="sc-label" onClick={() => onOpen(b)} title={b.title} data-org={clientOf(b)}>
       <span className={`sc-st st-${b.status}`}>{ST[b.status]}</span>
       <span className="sc-t">{b.title}</span>
       <small>{clientOf(b)}{extra}</small>
@@ -690,6 +690,14 @@ function ScheduleBoard({ bids, model, onOpen }) {
                       {pin(ms.close, "c", "마감", `입찰 마감 ${md(ms.close)}`)}
                       {!sameDay(ms.submit, ms.close) && pin(ms.submit, "s", "제출", `제안서 제출 ${md(ms.submit)}`)}
                       {pin(ms.present, `p ${ms.presentEst ? "est" : ""}`, ms.presentEst ? "발표?" : "발표", `제안 발표 ${md(ms.present)}${ms.presentEst ? " (예상)" : ""}`)}
+                    </div>
+                    {/* 휴대폰: 날짜를 글자로 각각 표시 */}
+                    <div className="sc-dates">
+                      {b.posted_at && <span className="d-post">게시 {md(b.posted_at)}</span>}
+                      {ms.qualify && <span className="d-q">자격 {md(ms.qualify)}</span>}
+                      <span className="d-c">마감 {md(ms.close)} <em>D-{Math.max(0, left)}</em></span>
+                      {!sameDay(ms.submit, ms.close) && ms.submit && <span className="d-s">제출 {md(ms.submit)}</span>}
+                      {ms.present && <span className={`d-p ${ms.presentEst ? "est" : ""}`}>발표 {md(ms.present)}{ms.presentEst ? " (예상)" : ""}</span>}
                     </div>
                   </div>
                 );
