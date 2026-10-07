@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/components/api";
 import { at, dday, money, when } from "@/components/format";
 import { winScore, reviewRisks, BOILERPLATE } from "@/lib/score";
+import { cashNeed } from "@/lib/payment";
 import { estimateCost, COST, LABOR, UNIT, costModel } from "@/lib/cost";
 import { titleVideoOnly } from "@/lib/video-score";
 
@@ -139,7 +140,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 7 || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 8 || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -816,6 +817,30 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
               {editCost && <CostEditor model={model} onSaved={(m) => { onModel(m); setEditCost(false); say("원가 기준을 저장했습니다. 모든 리포트에 바로 적용됩니다."); }} say={say} />}
             </section>
           )}
+
+          {est && (() => {
+            const p = a.payment || {};
+            const cash = cashNeed(p, est);
+            const Row = ({ k, v, ev }) => <tr><td>{k}</td><td>{v}{ev && <><br /><small className="ev">“{ev}”</small></>}</td></tr>;
+            return (
+              <section>
+                <H>운영 이슈 · 대금 지급</H>
+                <table className="rp-mm rp-pay">
+                  <tbody>
+                    <Row k="지급 방식" v={<b>{p.method || "문서에 지급 조건 없음 → 완료 후 일괄 지급(후불)으로 가정"}</b>} />
+                    <Row k="선금" v={p.advance ? (p.advance.has ? `있음${p.advance.pct ? ` (계약금액의 ${p.advance.pct}% 이내)` : ""}` : "지급 안 함") : "언급 없음 — 계약 시 선금 청구 가능 여부 확인"} ev={p.advance?.text} />
+                    <Row k="기성(중간 지급)" v={p.progress ? "있음" : "언급 없음"} ev={p.progress?.text} />
+                    <Row k="잔금 지급 시기" v={p.final ? (p.final.days ? `검수 후 ${p.final.days}일 이내` : "완료·검수 후") : "언급 없음 (검수 후 약 14일로 가정)"} ev={p.final?.text} />
+                    {p.contractBond && <Row k="계약보증금" v={`${p.contractBond.pct ?? "-"}%`} ev={p.contractBond.text} />}
+                    {p.warrantyBond && <Row k="하자보수보증금" v={`${p.warrantyBond.pct ?? "-"}%`} ev={p.warrantyBond.text} />}
+                    {p.warrantyPeriod && <Row k="하자담보 기간" v={`${p.warrantyPeriod.months}개월`} ev={p.warrantyPeriod.text} />}
+                    {p.lateFee && <Row k="지체상금" v={p.lateFee.rate ? `1일 ${p.lateFee.rate}` : "있음"} ev={p.lateFee.text} />}
+                    {cash && <tr className="sum"><td>자금 선투입</td><td>대금 받기 전 회사가 먼저 쓰는 돈 약 <b>{est.won(cash.peak)}</b> (월 약 {est.won(cash.monthly)} × {est.months}개월{cash.adv > 0 ? `, 선금 ${est.won(cash.adv)} 반영` : ""}) · 수령까지 약 {Math.round(cash.waitMonths * 10) / 10}개월</td></tr>}
+                  </tbody>
+                </table>
+              </section>
+            );
+          })()}
 
           <section>
             <H>사업 개요</H>

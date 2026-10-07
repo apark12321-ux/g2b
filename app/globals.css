@@ -592,3 +592,6 @@ h1, h2, h3, h4, .rp-title, .title, .sections button { letter-spacing: -0.025em; 
 .rp-info dt { flex: 0 0 84px; white-space: nowrap; }
 .via { color: var(--muted); font-size: 12px; }
 .rp-owner { margin-bottom: 12px; } .rp-owner td:nth-child(2) { text-align: left !important; color: var(--muted); }
+.rp-pay td:first-child { width: 120px; white-space: nowrap; font-weight: 600; }
+.rp-pay td:last-child { text-align: left !important; }
+.rp-pay small.ev { color: var(--muted); font-size: 11.5px; }
