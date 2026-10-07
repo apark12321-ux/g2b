@@ -675,3 +675,9 @@ ul.pc ul.ev { margin: 3px 0 0 28px; padding: 0; list-style: none; font-size: 12p
 .rp-disclaimer { margin: -2px 0 10px; padding: 7px 10px; font-size: 12.5px; line-height: 1.55; color: var(--muted); background: var(--paper); border-radius: 4px; border-left: 3px solid var(--line); }
 .rp-disclaimer b { color: var(--ink); font-weight: 600; }
 @media print { .rp-disclaimer { border-left-color: #999; } }
+/* 제안 일정: 입찰명이 전부 보이도록 */
+.sc-grid { min-width: 1080px; }
+.sc-head, .sc-row { grid-template-columns: 400px 1fr; }
+.sc-label .sc-t { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.35; word-break: keep-all; }
+.sc-label small { white-space: normal; overflow: visible; }
+.sc-label { padding: 8px 10px 8px 0; }

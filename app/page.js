@@ -587,14 +587,6 @@ function ScheduleBoard({ bids, model, onOpen }) {
     .map((b) => ({ b, ms: milestonesOf(b) }))
     .filter(({ ms }) => ms.close && new Date(ms.present || ms.close) >= today)
     .sort((x, y) => new Date(x.ms.close) - new Date(y.ms.close));
-  // 겹침: 마감이 3일 안쪽 또는 발표일이 하루 안쪽
-  const clash = new Map();
-  for (const r of rows) {
-    const near = rows.filter((o) => o !== r && (
-      Math.abs(new Date(o.ms.close) - new Date(r.ms.close)) <= 3 * DAYMS ||
-      (o.ms.present && r.ms.present && Math.abs(kstDay(o.ms.present) - kstDay(r.ms.present)) <= 1 * DAYMS)));
-    if (near.length) clash.set(r.b.key, near.length + 1);
-  }
   const col = (d) => Math.max(0, Math.min(DAYS, (kstDay(d) - start) / DAYMS));
   const days = [...Array(DAYS)].map((_, i) => new Date(start.getTime() + i * DAYMS));
 
@@ -609,7 +601,7 @@ function ScheduleBoard({ bids, model, onOpen }) {
   return (
     <div className="schedule">
       <section className="sc-block">
-        <h3>제안 일정 <small>공고 게시 → 자격등록 → <b>입찰 마감(제안서 제출)</b> → <b>발표</b>까지 · 마감이 3일 안쪽이거나 발표일이 붙은 공고는 <b className="clash-txt">겹침</b> · "발표?"는 예상일</small></h3>
+        <h3>제안 일정 <small>공고 게시 → 자격등록 → <b>입찰 마감(제안서 제출)</b> → <b>발표</b>까지 · "발표?"는 예상일</small></h3>
         {!rows.length ? <p className="sc-empty">다가오는 마감이 없습니다.</p> : (
           <div className="sc-scroll">
             <div className="sc-grid" style={{ "--days": DAYS }}>
@@ -624,7 +616,6 @@ function ScheduleBoard({ bids, model, onOpen }) {
                 </div>
               </div>
               {rows.map(({ b, ms }) => {
-                const c = clash.get(b.key);
                 const from = col(b.posted_at || today), to = col(ms.present || ms.close); // 발표일에서 끊음
                 const left = Math.floor((new Date(ms.close) - Date.now()) / DAYMS);
                 const pin = (d, cls, label, title) => d && col(d) > 0 && col(d) < DAYS && (
@@ -632,7 +623,7 @@ function ScheduleBoard({ bids, model, onOpen }) {
                 );
                 const sameDay = (x, y) => x && y && +kstDay(x) === +kstDay(y);
                 return (
-                  <div key={b.key} className={`sc-row ${c ? "clash" : ""}`}>
+                  <div key={b.key} className="sc-row">
                     <Label b={b} extra={` · 마감 ${md(ms.close)} (D-${Math.max(0, left)}) · 발표 ${md(ms.present)}${ms.presentEst ? "경(예상)" : ""}`} />
                     <div className="sc-track">
                       <div className="sc-today" style={{ left: `${(col(today) / DAYS) * 100}%` }} />
@@ -641,7 +632,6 @@ function ScheduleBoard({ bids, model, onOpen }) {
                       {pin(ms.close, "c", "마감", `입찰 마감 ${md(ms.close)}`)}
                       {!sameDay(ms.submit, ms.close) && pin(ms.submit, "s", "제출", `제안서 제출 ${md(ms.submit)}`)}
                       {pin(ms.present, `p ${ms.presentEst ? "est" : ""}`, ms.presentEst ? "발표?" : "발표", `제안 발표 ${md(ms.present)}${ms.presentEst ? " (예상)" : ""}`)}
-                      {c && <span className="sc-clash" style={{ left: `${((to + 2.2) / DAYS) * 100}%` }}>겹침 {c}건</span>}
                     </div>
                   </div>
                 );
