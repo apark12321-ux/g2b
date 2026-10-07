@@ -348,7 +348,7 @@ textarea.full { min-height: 64px; resize: vertical; }
 .foot-link:disabled { cursor: progress; }
 
 /* ---------- 검토·분석 (리스크 중심) */
-.review { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); padding: 12px 14px; }
+.rv-box { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); padding: 12px 14px; }
 .verdict { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; padding: 10px 12px; border-radius: 7px; color: #fff; }
 .verdict strong { font-size: 15px; }
 .verdict span { font-size: 13px; opacity: .95; }
@@ -356,7 +356,7 @@ textarea.full { min-height: 64px; resize: vertical; }
 .v-warn { background: #b7791f; }
 .v-bad { background: var(--seal); }
 .rv-sec { margin-top: 12px; }
-.rv-sec h4, .review .an-main h4 { margin: 0 0 6px; font-size: 13px; font-weight: 700; color: var(--ink); }
+.rv-sec h4, .rv-box .an-main h4 { margin: 0 0 6px; font-size: 13px; font-weight: 700; color: var(--ink); }
 .risks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .risks li { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
 .risks p { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
@@ -370,7 +370,7 @@ textarea.full { min-height: 64px; resize: vertical; }
 .rv-sec > ul:not(.risks):not(.chk) { margin: 0; padding-left: 18px; font-size: 14px; }
 .rv-sec > ul:not(.risks):not(.chk) li { margin: 2px 0; }
 .unit { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); }
-.review .an-foot { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); margin-top: 10px; flex-wrap: wrap; }
+.rv-box .an-foot { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); margin-top: 10px; flex-wrap: wrap; }
 .rv-badge-row { margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .rv-badge { font-size: 12px; font-weight: 700; color: #fff; border-radius: 4px; padding: 2px 8px; }
 .rv-badge-hint { font-size: 12px; color: var(--muted); }
@@ -403,7 +403,8 @@ textarea.full { min-height: 64px; resize: vertical; }
 .rv-core dt { flex: 0 0 56px; font-weight: 700; color: var(--ink); white-space: nowrap; }
 .rv-core dd { margin: 0; }
 .rv-core em { font-style: normal; color: var(--muted); font-size: 13px; }
-.review .risks { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.rv-box .risks { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
 .rv-minor { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
 .rv-check { margin: 8px 0 0; font-size: 13px; padding: 8px 10px; background: var(--sheet); border-radius: 6px; border-left: 3px solid var(--ink); }
 .rv-check b { margin-right: 6px; }
+.sec-n.join { background: #2e7d4f; }

@@ -6,7 +6,6 @@ import { at, dday, money, when } from "@/components/format";
 const TABS = [
   ["all", "전체"],
   ["new", "신규"],
-  ["join", "참여"],
   ["pass", "패스"],
 ];
 const STAMPS = [
@@ -106,7 +105,7 @@ export default function Home() {
     const now = Date.now();
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
-      !tried[b.key] && !failed[b.key] && (b.status === "review" || focus === b.key) &&
+      !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
       (!b.analysis || !b.analysis.review || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
@@ -120,7 +119,7 @@ export default function Home() {
     if (!focus || !data) return;
     const b = data.bids.find((x) => x.key === focus);
     if (!b) return;
-    setSection("bids");
+    setSection(b.status === "review" ? "review" : b.status === "join" ? "join" : "bids");
     setTab("all");
     if (b.close_at && new Date(b.close_at).getTime() < Date.now()) setHideClosed(false);
     setTimeout(() => document.getElementById(`bid-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
@@ -157,7 +156,10 @@ export default function Home() {
   const lowCount = useMemo(() => (data ? data.bids.filter((b) => b.analysis?.video?.low).length : 0), [data]);
 
   // 검토로 넘긴 공고는 '입찰 공고' 쪽(전체·신규 등)에서 빼고 '검토·분석'에서만 보임
-  const bidsOnly = useMemo(() => base.filter((b) => b.status !== "review" || focus === b.key), [base, focus]);
+  const bidsOnly = useMemo(
+    () => base.filter((b) => (b.status !== "review" && b.status !== "join") || focus === b.key),
+    [base, focus]
+  );
   const counts = useMemo(() => {
     const c = { all: bidsOnly.length, new: 0, review: 0, join: 0, pass: 0 };
     bidsOnly.forEach((b) => c[b.status]++);
@@ -165,7 +167,11 @@ export default function Home() {
   }, [bidsOnly]);
 
   const reviewList = base.filter((b) => b.status === "review");
-  const shown = section === "review" ? reviewList : tab === "all" ? bidsOnly : bidsOnly.filter((b) => b.status === tab);
+  const joinList = base.filter((b) => b.status === "join");
+  const shown =
+    section === "review" ? reviewList :
+    section === "join" ? joinList :
+    tab === "all" ? bidsOnly : bidsOnly.filter((b) => b.status === tab);
   const run = data?.lastRun;
 
   return (
@@ -178,6 +184,9 @@ export default function Home() {
             </button>
             <button role="tab" aria-selected={section === "review"} className={section === "review" ? "on" : ""} onClick={() => setSection("review")}>
               검토·분석{reviewList.length > 0 && <span className="sec-n">{reviewList.length}</span>}
+            </button>
+            <button role="tab" aria-selected={section === "join"} className={section === "join" ? "on" : ""} onClick={() => setSection("join")}>
+              참여{joinList.length > 0 && <span className="sec-n join">{joinList.length}</span>}
             </button>
           </div>
           {run && (
@@ -211,7 +220,9 @@ export default function Home() {
 
       {data && !shown.length && (
         <div className="empty">
-          {section === "review" ? (
+          {section === "join" ? (
+            <><strong>참여하기로 한 공고가 없습니다</strong>검토·분석에서 <b>참여</b>를 누르면 여기로 옮겨집니다.</>
+          ) : section === "review" ? (
             <><strong>검토 중인 공고가 없습니다</strong>입찰 공고에서 <b>검토</b>를 누르면 여기서 리스크 분석을 볼 수 있습니다.</>
           ) : data.bids.length ? (
             <><strong>조건에 맞는 공고가 없습니다</strong>필터를 바꾸거나 마감 지난 공고도 표시해 보세요.</>
@@ -229,7 +240,7 @@ export default function Home() {
       )}
 
       <div className="list">
-        {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key} detail={section === "review"} say={say}
+        {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key} detail={section === "review" || section === "join"} section={section} say={say}
             an={{ working: working === b.key, error: failed[b.key], retry: (force) => analyze(b.key, force) }} />)}
       </div>
 
@@ -356,7 +367,7 @@ function Review({ bid: b, an }) {
   const period = has(a.period) ? a.period.replace(/^\S*기간\s*[:：]?\s*/, "") : "";
 
   return (
-    <div className="review">
+    <div className="rv-box">
       <div className={`verdict ${TONE[r.verdict.tone]}`}>
         <strong>{r.verdict.level}</strong>
         <span>{r.verdict.reason}</span>
@@ -396,7 +407,7 @@ function Review({ bid: b, an }) {
   );
 }
 
-function BidRow({ bid: b, onUpdate, an, focused, detail, say }) {
+function BidRow({ bid: b, onUpdate, an, focused, detail, say, section }) {
   const d = dday(b.close_at);
   const revised = String(b.bid_ord || "").replace(/0/g, "") !== "";
 
@@ -432,14 +443,18 @@ function BidRow({ bid: b, onUpdate, an, focused, detail, say }) {
       </div>
 
       <div className="stamps" aria-label="검토 상태">
-        {STAMPS.map(([id, label]) => {
+        {STAMPS.filter(([id]) =>
+          section === "review" ? true : section === "join" ? id !== "review" : id !== "join"
+        ).map(([id, label]) => {
           const on = b.status === id;
           return (
             <button
               key={id} className={`stamp ${id} ${on ? "on" : ""}`} aria-pressed={on}
               title={on ? `${label} 해제` : `${label}(으)로 표시`}
               onClick={() => {
-                onUpdate(b.key, { status: on ? "new" : id });
+                // 참여 해제는 검토·분석으로 되돌림
+                onUpdate(b.key, { status: on ? (id === "join" ? "review" : "new") : id });
+                if (!on && id === "join") say("참여로 옮겼습니다.");
                 if (!on && id === "review") {
                   say("검토·분석에 추가하고 리스크 분석을 시작합니다.");
                   an.retry(false);
