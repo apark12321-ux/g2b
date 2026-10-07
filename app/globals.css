@@ -384,3 +384,26 @@ textarea.full { min-height: 64px; resize: vertical; }
 .sub-mini .sub-how { font-size: 12px; margin-bottom: 8px; }
 .sub-mini .topic-box code { font-size: 13px; padding: 6px 10px; }
 .sub-mini .topic-box .btn { padding: 6px 10px; font-size: 12px; }
+
+/* 상위 섹션: 입찰 공고 / 검토·분석 */
+.sections { display: flex; gap: 18px; align-items: baseline; }
+.sections button {
+  border: 0; background: none; padding: 0 0 4px; cursor: pointer;
+  font-size: 26px; font-weight: 700; letter-spacing: -0.02em; color: var(--pass);
+  border-bottom: 3px solid transparent;
+}
+.sections button.on { color: var(--ink); border-bottom-color: var(--ink); }
+.sec-n { display: inline-block; margin-left: 6px; font-size: 14px; vertical-align: 4px; color: #fff; background: var(--seal); border-radius: 999px; padding: 1px 8px; }
+@media (max-width: 640px) { .sections { gap: 14px; } .sections button { font-size: 21px; } }
+
+/* 검토·분석: 짧고 굵게 */
+.verdict strong { font-size: 17px; }
+.rv-core { margin: 12px 0 0; display: grid; gap: 5px; }
+.rv-core div { display: flex; gap: 10px; font-size: 14.5px; line-height: 1.5; }
+.rv-core dt { flex: 0 0 56px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.rv-core dd { margin: 0; }
+.rv-core em { font-style: normal; color: var(--muted); font-size: 13px; }
+.review .risks { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.rv-minor { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
+.rv-check { margin: 8px 0 0; font-size: 13px; padding: 8px 10px; background: var(--sheet); border-radius: 6px; border-left: 3px solid var(--ink); }
+.rv-check b { margin-right: 6px; }

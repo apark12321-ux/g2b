@@ -6,7 +6,6 @@ import { at, dday, money, when } from "@/components/format";
 const TABS = [
   ["all", "전체"],
   ["new", "신규"],
-  ["review", "검토·분석"],
   ["join", "참여"],
   ["pass", "패스"],
 ];
@@ -28,6 +27,7 @@ export default function Home() {
   const [data, setData] = useState(null);
   const [loadErr, setLoadErr] = useState("");
   const [tab, setTab] = useState("new");
+  const [section, setSection] = useState("bids"); // bids: 입찰 공고, review: 검토·분석
   const [rule, setRule] = useState("");
   const [q, setQ] = useState("");
   const [hideClosed, setHideClosed] = useState(true);
@@ -120,6 +120,7 @@ export default function Home() {
     if (!focus || !data) return;
     const b = data.bids.find((x) => x.key === focus);
     if (!b) return;
+    setSection("bids");
     setTab("all");
     if (b.close_at && new Date(b.close_at).getTime() < Date.now()) setHideClosed(false);
     setTimeout(() => document.getElementById(`bid-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
@@ -161,14 +162,22 @@ export default function Home() {
     return c;
   }, [base]);
 
-  const shown = tab === "all" ? base : base.filter((b) => b.status === tab);
+  const reviewList = base.filter((b) => b.status === "review");
+  const shown = section === "review" ? reviewList : tab === "all" ? base : base.filter((b) => b.status === tab);
   const run = data?.lastRun;
 
   return (
     <>
       <div className="top">
         <div>
-          <h1>입찰 공고</h1>
+          <div className="sections" role="tablist">
+            <button role="tab" aria-selected={section === "bids"} className={section === "bids" ? "on" : ""} onClick={() => setSection("bids")}>
+              입찰 공고
+            </button>
+            <button role="tab" aria-selected={section === "review"} className={section === "review" ? "on" : ""} onClick={() => setSection("review")}>
+              검토·분석{reviewList.length > 0 && <span className="sec-n">{reviewList.length}</span>}
+            </button>
+          </div>
           {run && (
             <div className={`run ${run.error ? "bad" : ""}`}>
               {run.error
@@ -181,13 +190,13 @@ export default function Home() {
 
 
       <div className="filters">
-        <div className="tabs" role="tablist">
+        {section === "bids" && <div className="tabs" role="tablist">
           {TABS.map(([id, label]) => (
             <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>
               {label}<span className="n">{counts[id]}</span>
             </button>
           ))}
-        </div>
+        </div>}
         <input className="field search" type="search" placeholder="모인 공고에서 찾기 (공고명·기관)" value={q} onChange={(e) => setQ(e.target.value)} />
         <label className="check">
           <input type="checkbox" checked={hideClosed} onChange={(e) => setHideClosed(e.target.checked)} />
@@ -200,7 +209,9 @@ export default function Home() {
 
       {data && !shown.length && (
         <div className="empty">
-          {data.bids.length ? (
+          {section === "review" ? (
+            <><strong>검토 중인 공고가 없습니다</strong>입찰 공고에서 <b>검토</b>를 누르면 여기서 리스크 분석을 볼 수 있습니다.</>
+          ) : data.bids.length ? (
             <><strong>조건에 맞는 공고가 없습니다</strong>필터를 바꾸거나 마감 지난 공고도 표시해 보세요.</>
           ) : (
             <><strong>아직 모인 공고가 없습니다</strong>10분마다 자동으로 수집합니다. 잠시 후 다시 확인해 주세요.</>
@@ -216,7 +227,7 @@ export default function Home() {
       )}
 
       <div className="list">
-        {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key} detail={tab === "review"} say={say}
+        {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key} detail={section === "review"} say={say}
             an={{ working: working === b.key, error: failed[b.key], retry: (force) => analyze(b.key, force) }} />)}
       </div>
 
@@ -303,11 +314,11 @@ const TONE = { good: "v-good", warn: "v-warn", bad: "v-bad" };
 function ReviewBadge({ bid: b, an }) {
   const v = b.analysis?.review?.verdict;
   if (an.working) return <div className="an-wait"><span className="dot on" aria-hidden />리스크 분석 중</div>;
-  if (!v) return <div className="an-wait">검토·분석 탭에서 분석 결과를 볼 수 있습니다</div>;
+  if (!v) return <div className="an-wait">검토·분석에서 분석 결과를 볼 수 있습니다</div>;
   return (
     <div className="rv-badge-row">
       <span className={`rv-badge ${TONE[v.tone]}`}>{v.level}</span>
-      <span className="rv-badge-hint">자세한 내용은 검토·분석 탭</span>
+      <span className="rv-badge-hint">검토·분석에서 확인</span>
     </div>
   );
 }
@@ -332,8 +343,13 @@ function Review({ bid: b, an }) {
   }
   const r = a.review;
   const has = (x) => (Array.isArray(x) ? x.length > 0 : !!x && x !== "문서에 없음");
-  const list = (items) => <ul>{items.filter(has).map((x, i) => <li key={i}>{x}</li>)}</ul>;
-  const staff = (a.staff || []).filter((x) => has(x?.role)).map((x) => (has(x.detail) ? `${x.role} (${x.detail})` : x.role));
+  const short = (x, k) => (x.length > k ? x.slice(0, k - 1) + "…" : x);
+  const key = r.risks.filter((x) => x.level !== "참고"); // 높음·주의만
+  const minor = r.risks.filter((x) => x.level === "참고").map((x) => x.item);
+  const what = has(a.tasks) ? a.tasks.slice(0, 3).map((x) => short(x.replace(/[.。]$/, ""), 40)).join(" · ") : "";
+  const deliver = has(a.deliverables) ? a.deliverables.slice(0, 3).map((x) => short(x.replace(/[.。]$/, ""), 45)).join(" · ") : "";
+  const pres = has(a.presentation) ? short(a.presentation[0], 80) : "";
+  const period = has(a.period) ? a.period.replace(/^\S*기간\s*[:：]?\s*/, "") : "";
 
   return (
     <div className="review">
@@ -342,56 +358,34 @@ function Review({ bid: b, an }) {
         <span>{r.verdict.reason}</span>
       </div>
 
-      {r.risks.length > 0 && (
-        <section className="rv-sec">
-          <h4>리스크</h4>
-          <ul className="risks">
-            {r.risks.map((x, i) => (
-              <li key={i}>
-                <span className={`lv lv-${x.level === "높음" ? "hi" : x.level === "주의" ? "mid" : "lo"}`}>{x.level}</span>
-                <div>
-                  <b>{x.item}</b>
-                  {has(x.detail) && <p>{x.detail}</p>}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {r.checklist?.length > 0 && (
-        <section className="rv-sec">
-          <h4>입찰 전 확인할 것</h4>
-          <ul className="chk">{r.checklist.map((x, i) => <li key={i}>{x}</li>)}</ul>
-        </section>
-      )}
-
-      <section className="rv-sec an-main">
-        <div>
-          <h4>하는 일</h4>
-          {has(a.tasks) ? list(a.tasks.slice(0, 8)) : <p className="na">문서에서 찾지 못함</p>}
-        </div>
-        <div>
-          <h4>최종 납품물</h4>
-          {has(a.deliverables) ? list(a.deliverables.slice(0, 8)) : <p className="na">문서에서 찾지 못함</p>}
-          {r.unit && <p className="unit">{r.unit}</p>}
-        </div>
-      </section>
-
-      {has(a.presentation) && (
-        <section className="rv-sec"><h4>발표 조건</h4>{list(a.presentation)}</section>
-      )}
-
-      <dl className="an-meta">
-        {has(a.period) && <div><dt>기간</dt><dd>{a.period.replace(/^\S*기간\s*[:：]?\s*/, "")}</dd></div>}
-        {staff.length > 0 && <div><dt>인력</dt><dd>{staff.join(", ")}</dd></div>}
-        {has(a.eligibility) && <div><dt>자격</dt><dd>{a.eligibility.join(" / ")}</dd></div>}
-        {has(a.evaluation) && <div><dt>평가</dt><dd>{a.evaluation}</dd></div>}
-        {has(a.schedule) && <div><dt>일정</dt><dd>{a.schedule.join(" / ")}</dd></div>}
+      <dl className="rv-core">
+        <div><dt>하는 일</dt><dd>{what || "문서에서 찾지 못함"}</dd></div>
+        <div><dt>납품물</dt><dd>{deliver || "문서에서 찾지 못함"}{r.unit && <em> — {r.unit.replace(/\s*\(.*\)$/, "")}</em>}</dd></div>
+        {period && <div><dt>기간</dt><dd>{period}</dd></div>}
+        {pres && <div><dt>발표</dt><dd>{pres}</dd></div>}
       </dl>
 
+      {key.length > 0 && (
+        <ul className="risks">
+          {key.slice(0, 5).map((x, i) => (
+            <li key={i}>
+              <span className={`lv lv-${x.level === "높음" ? "hi" : "mid"}`}>{x.level}</span>
+              <div>
+                <b>{x.item}</b>
+                {has(x.detail) && <p>{short(x.detail, 90)}</p>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {minor.length > 0 && <p className="rv-minor">참고: {minor.join(" · ")}</p>}
+
+      {r.checklist?.length > 0 && (
+        <p className="rv-check"><b>입찰 전 확인</b> {r.checklist.slice(0, 3).join(" / ")}</p>
+      )}
+
       <div className="an-foot">
-        {a.sources?.length ? <span>읽은 파일: {a.sources.join(", ")}</span> : <span>첨부를 읽지 못해 공고 정보로만 판단</span>}
+        <span>{a.sources?.length ? `읽은 파일 ${a.sources.length}개` : "첨부를 읽지 못해 공고 정보로만 판단"}</span>
         <button className="mini" onClick={() => an.retry(true)} disabled={an.working}>{an.working ? "다시 분석하는 중" : "다시 분석"}</button>
       </div>
     </div>
@@ -443,7 +437,7 @@ function BidRow({ bid: b, onUpdate, an, focused, detail, say }) {
               onClick={() => {
                 onUpdate(b.key, { status: on ? "new" : id });
                 if (!on && id === "review") {
-                  say("검토·분석 탭에 추가하고 리스크 분석을 시작합니다.");
+                  say("검토·분석에 추가하고 리스크 분석을 시작합니다.");
                   an.retry(false);
                 }
               }}
