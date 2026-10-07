@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/components/api";
 import { at, dday, money, when } from "@/components/format";
+import { winScore } from "@/lib/score";
 
 const TABS = [
   ["all", "전체"],
@@ -165,7 +166,11 @@ export default function Home() {
     return c;
   }, [bidsOnly]);
 
-  const reviewList = base.filter((b) => b.status === "review");
+  const reviewList = base
+    .filter((b) => b.status === "review")
+    .map((b) => [b, winScore(b, b.analysis)?.score ?? -1])
+    .sort((x, y) => y[1] - x[1])
+    .map((x) => x[0]);
   const joinList = base.filter((b) => b.status === "join");
   const shown =
     section === "review" ? reviewList :
@@ -494,6 +499,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
   const d = dday(b.close_at);
   const a = b.analysis;
   const r = a?.review;
+  const ws = winScore(b, a);
   const noDP = (x) => !/직접\s*생산/.test(typeof x === "string" ? x : `${x.item} ${x.detail || ""}`);
   const risks = (r?.risks || []).filter(noDP);
   const checklist = (r?.checklist || []).filter(noDP);
@@ -517,7 +523,12 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
           {revised && <span className="revised">정정</span>}
           {b.title}
         </a>
-        {r && <div className={`rp-stamp ${TONE[r.verdict.tone]}`}>{r.verdict.level}</div>}
+        {ws && (
+          <div className={`rp-stamp g-${ws.grade}`}>
+            <b>{ws.score}</b><small>점</small>
+            <span>{ws.grade} · {ws.label}</span>
+          </div>
+        )}
       </header>
 
       <dl className="rp-info">
@@ -542,9 +553,10 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
           <section>
             <H>종합 판단</H>
             <div className={`rp-verdict ${TONE[r.verdict.tone]}`}>
-              <strong>{r.verdict.level}</strong>
-              <p>{r.verdict.reason}</p>
+              <strong>수주 가능성 {ws.score}점 · {ws.label}</strong>
+              <p>{r.verdict.level}: {r.verdict.reason}</p>
             </div>
+            <ul className="rp-score">{ws.reasons.map((x, i) => <li key={i} className={x.startsWith("+") ? "plus" : "minus"}>{x}</li>)}</ul>
           </section>
 
           <section>

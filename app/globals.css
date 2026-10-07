@@ -493,3 +493,14 @@ textarea.full { min-height: 64px; resize: vertical; }
   .rp-risk td:nth-child(2) { width: auto; }
   .rp-title { font-size: 17px; }
 }
+/* 수주 가능성 점수 도장 */
+.rp-stamp { display: flex; flex-direction: column; align-items: center; min-width: 96px; }
+.rp-stamp b { font-size: 28px; line-height: 1; }
+.rp-stamp small { font-size: 11px; }
+.rp-stamp span { font-size: 12px; margin-top: 2px; white-space: nowrap; }
+.rp-stamp.g-A { color: #2e7d4f; } .rp-stamp.g-B { color: #b7791f; } .rp-stamp.g-C { color: var(--seal); }
+.rp-score { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
+.rp-score li { border-radius: 4px; padding: 2px 8px; background: var(--paper); }
+.rp-score li.plus { color: #2e7d4f; } .rp-score li.minus { color: var(--seal); }
+@media (max-width: 640px) { .rp-stamp { flex-direction: row; gap: 4px; align-items: baseline; } }
+.rp-stamp { max-width: none; padding: 8px 12px 9px; line-height: 1.2; }
