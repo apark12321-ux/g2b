@@ -140,7 +140,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 9 || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 10 || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -564,6 +564,18 @@ const endOf = (a) => {
   return m ? new Date(`${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}T00:00:00+09:00`) : null;
 };
 const ST = { new: "신규", review: "검토", join: "참여" };
+/** 제안 일정 마일스톤 (분석 전이면 입찰마감 기준으로 추정) */
+const milestonesOf = (b) => {
+  const m = b.analysis?.milestones || {};
+  const close = m.close || b.close_at;
+  const present = m.present || (close ? new Date(new Date(close).getTime() + 5 * DAYMS).toISOString() : null);
+  return { qualify: m.qualify, close, submit: m.submit || close, open: m.open, present, presentEst: m.present ? !!m.presentEst : true };
+};
+const monthLabel = (d, edge) => {
+  const x = new Date(d), day = x.getDate();
+  const part = day <= 10 ? "초" : day <= 20 ? "중순" : "말";
+  return `${x.getMonth() + 1}월 ${part}`;
+};
 
 function ScheduleBoard({ bids, model, onOpen }) {
   const today = kstDay(Date.now());
@@ -572,13 +584,16 @@ function ScheduleBoard({ bids, model, onOpen }) {
   const start = new Date(today.getTime() - 2 * DAYMS);
   const DAYS = 42;
   const rows = bids
-    .filter((b) => b.close_at && new Date(b.close_at) >= today)
-    .sort((x, y) => new Date(x.close_at) - new Date(y.close_at));
-  // 마감이 3일 안쪽으로 붙어 있으면 '겹침' (동시에 제안서 준비)
+    .map((b) => ({ b, ms: milestonesOf(b) }))
+    .filter(({ ms }) => ms.close && new Date(ms.present || ms.close) >= today)
+    .sort((x, y) => new Date(x.ms.close) - new Date(y.ms.close));
+  // 겹침: 마감이 3일 안쪽 또는 발표일이 하루 안쪽
   const clash = new Map();
-  for (let i = 0; i < rows.length; i++) {
-    const near = rows.filter((o) => o !== rows[i] && Math.abs(new Date(o.close_at) - new Date(rows[i].close_at)) <= 3 * DAYMS);
-    if (near.length) clash.set(rows[i].key, near.length + 1);
+  for (const r of rows) {
+    const near = rows.filter((o) => o !== r && (
+      Math.abs(new Date(o.ms.close) - new Date(r.ms.close)) <= 3 * DAYMS ||
+      (o.ms.present && r.ms.present && Math.abs(kstDay(o.ms.present) - kstDay(r.ms.present)) <= 1 * DAYMS)));
+    if (near.length) clash.set(r.b.key, near.length + 1);
   }
   const col = (d) => Math.max(0, Math.min(DAYS, (kstDay(d) - start) / DAYMS));
   const days = [...Array(DAYS)].map((_, i) => new Date(start.getTime() + i * DAYMS));
@@ -621,7 +636,7 @@ function ScheduleBoard({ bids, model, onOpen }) {
   return (
     <div className="schedule">
       <section className="sc-block">
-        <h3>제안 마감 일정 <small>앞으로 6주 · 마감이 3일 안쪽으로 붙은 공고는 <b className="clash-txt">겹침</b>으로 표시 (제안서를 동시에 준비해야 함)</small></h3>
+        <h3>제안 일정 <small>공고 게시 → 자격등록 → <b>입찰 마감(제안서 제출)</b> → <b>발표</b>까지 · 마감이 3일 안쪽이거나 발표일이 붙은 공고는 <b className="clash-txt">겹침</b> · "발표?"는 예상일</small></h3>
         {!rows.length ? <p className="sc-empty">다가오는 마감이 없습니다.</p> : (
           <div className="sc-scroll">
             <div className="sc-grid" style={{ "--days": DAYS }}>
@@ -635,19 +650,25 @@ function ScheduleBoard({ bids, model, onOpen }) {
                   })}
                 </div>
               </div>
-              {rows.map((b) => {
+              {rows.map(({ b, ms }) => {
                 const c = clash.get(b.key);
-                const from = col(b.posted_at || today), to = col(b.close_at);
-                const left = Math.floor((new Date(b.close_at) - Date.now()) / DAYMS);
+                const from = col(b.posted_at || today), to = col(ms.present || ms.close); // 발표일에서 끊음
+                const left = Math.floor((new Date(ms.close) - Date.now()) / DAYMS);
+                const pin = (d, cls, label, title) => d && col(d) > 0 && col(d) < DAYS && (
+                  <span className={`sc-pin ${cls}`} style={{ left: `${((col(d) + 0.5) / DAYS) * 100}%` }} title={title}>{label}</span>
+                );
+                const sameDay = (x, y) => x && y && +kstDay(x) === +kstDay(y);
                 return (
                   <div key={b.key} className={`sc-row ${c ? "clash" : ""}`}>
-                    <Label b={b} extra={` · 마감 ${md(b.close_at)} (D-${Math.max(0, left)})`} />
+                    <Label b={b} extra={` · 마감 ${md(ms.close)} (D-${Math.max(0, left)}) · 발표 ${md(ms.present)}${ms.presentEst ? "경(예상)" : ""}`} />
                     <div className="sc-track">
                       <div className="sc-today" style={{ left: `${(col(today) / DAYS) * 100}%` }} />
-                      <div className={`sc-bar st-${b.status}`} style={{ left: `${(from / DAYS) * 100}%`, width: `${Math.max(0.6, ((to - from + 1) / DAYS) * 100)}%` }}>
-                        <span className="sc-due">마감</span>
-                      </div>
-                      {c && <span className="sc-clash" style={{ left: `${(to / DAYS) * 100}%` }}>겹침 {c}건</span>}
+                      <div className={`sc-bar st-${b.status}`} style={{ left: `${(from / DAYS) * 100}%`, width: `${Math.max(0.6, ((to - from + 1) / DAYS) * 100)}%` }} />
+                      {ms.qualify && new Date(ms.close) - new Date(ms.qualify) > 2 * DAYMS && pin(ms.qualify, "q", "자격", `입찰참가자격 등록 마감 ${md(ms.qualify)}`)}
+                      {pin(ms.close, "c", "마감", `입찰 마감 ${md(ms.close)}`)}
+                      {!sameDay(ms.submit, ms.close) && pin(ms.submit, "s", "제출", `제안서 제출 ${md(ms.submit)}`)}
+                      {pin(ms.present, `p ${ms.presentEst ? "est" : ""}`, ms.presentEst ? "발표?" : "발표", `제안 발표 ${md(ms.present)}${ms.presentEst ? " (예상)" : ""}`)}
+                      {c && <span className="sc-clash" style={{ left: `${((to + 2.2) / DAYS) * 100}%` }}>겹침 {c}건</span>}
                     </div>
                   </div>
                 );
@@ -658,7 +679,7 @@ function ScheduleBoard({ bids, model, onOpen }) {
       </section>
 
       <section className="sc-block">
-        <h3>수행 일정 · 인력 <small>검토·참여 공고의 계약 예정일~종료일 · 기간이 겹치면 <b className="clash-txt">빨간 테두리</b> · 가용 인력 {M.teamMax}명 기준</small></h3>
+        <h3>수행 일정 · 인력 <small>검토·참여 공고의 대략적인 수행 기간(계약 예정 ~ 종료 무렵) · 기간이 겹치면 <b className="clash-txt">빨간 테두리</b> · 가용 인력 {M.teamMax}명 기준</small></h3>
         {!runs.length ? <p className="sc-empty">분석이 끝난 검토·참여 공고가 없습니다.</p> : (
           <div className="sc-scroll">
             <div className="sc-grid months">
@@ -680,10 +701,10 @@ function ScheduleBoard({ bids, model, onOpen }) {
                 const ov = overlapRun(r);
                 return (
                   <div key={r.b.key} className={`sc-row ${ov ? "clash" : ""}`}>
-                    <Label b={r.b} extra={` · ${md(r.s0)}~${md(r.e0)} · 월 ${Math.round(r.fte * 10) / 10}명`} />
+                    <Label b={r.b} extra={` · ${monthLabel(r.s0)} ~ ${monthLabel(r.e0)}경 · 월 ${Math.round(r.fte * 10) / 10}명`} />
                     <div className="sc-track">
                       <div className="sc-today" style={{ left: `${pos(today)}%` }} />
-                      <div className={`sc-bar run st-${r.b.status}`} style={{ left: `${pos(r.s0)}%`, width: `${Math.max(1, pos(r.e0) - pos(r.s0))}%` }} />
+                      <div className={`sc-bar run rough st-${r.b.status}`} style={{ left: `${pos(r.s0)}%`, width: `${Math.max(1, pos(r.e0) - pos(r.s0))}%` }} />
                     </div>
                   </div>
                 );
@@ -1052,12 +1073,12 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
               <section>
                 <H>입찰 전 확인</H>
                 <div className="pc-step gate">
-                  <h4>1단계 · 입찰 가능 여부 <small>하나라도 안 되면 준비할 필요 없음 ({gateDone}/{pc.gate.length} 확인)</small></h4>
+                  <h4>1단계 · 입찰 가능 여부 <small>{gateDone}/{pc.gate.length} 확인</small></h4>
                   <ul className="pc">{pc.gate.map((x) => <Item key={x.id} x={x} />)}</ul>
                 </div>
                 {pc.prep.length > 0 && (
                   <div className={`pc-step ${gateDone < pc.gate.length ? "locked" : ""}`}>
-                    <h4>2단계 · 경영지원팀 제출 체크리스트 <small>{gateDone < pc.gate.length ? "1단계를 모두 확인한 뒤 진행" : "순서대로 진행"}</small></h4>
+                    <h4>2단계 · 경영지원팀 제출 체크리스트</h4>
                     <ul className="pc">{pc.prep.map((x, i) => <Item key={x.id} x={x} n={i + 1} />)}</ul>
                   </div>
                 )}

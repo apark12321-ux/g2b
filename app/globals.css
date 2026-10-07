@@ -659,3 +659,16 @@ ul.pc ul.ev { margin: 3px 0 0 28px; padding: 0; list-style: none; font-size: 12p
 .rp-print:hover { background: var(--indigo); color: #fff; }
 .rp-stamp { pointer-events: none; }
 @media print { .rp-print { display: none !important; } }
+/* 일정 마일스톤 */
+.sc-bar { top: 14px; height: 16px; }
+.sc-pin { position: absolute; top: 2px; transform: translateX(-50%); font-size: 10px; font-weight: 700; white-space: nowrap; border-radius: 3px; padding: 0 4px; line-height: 15px; z-index: 1; }
+.sc-pin::after { content: ""; position: absolute; left: 50%; top: 15px; width: 1px; height: 14px; background: currentColor; }
+.sc-pin.q { color: var(--muted); background: var(--sheet); border: 1px solid var(--line); }
+.sc-pin.c { color: #fff; background: var(--ink); }
+.sc-pin.s { color: #fff; background: var(--indigo); }
+.sc-pin.p { color: #fff; background: #b7791f; }
+.sc-pin.p.est { color: #b7791f; background: var(--sheet); border: 1px dashed #b7791f; }
+.sc-row { min-height: 50px; }
+/* 수행 기간은 대략적으로: 시작·끝을 흐리게 */
+.sc-bar.run.rough { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 88%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 88%, transparent 100%); }
+.sc-row.clash .sc-bar.run.rough { outline: none; box-shadow: 0 0 0 2px var(--seal); }
