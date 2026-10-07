@@ -141,7 +141,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 11 || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 12 || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
