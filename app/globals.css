@@ -571,7 +571,11 @@ textarea.full { min-height: 64px; resize: vertical; }
 /* 리포트 크게 보기 / 단독 화면 */
 .rp-open { position: absolute; right: 0; bottom: 10px; }
 .solo-bar { display: flex; justify-content: space-between; margin: 0 0 12px; }
-@media print { .nav, .solo-bar, .stamps, .rp-open, .toast, .mini { display: none !important; } .report { box-shadow: none; border: 0; } }
+@media print {
+  .nav, .top, .org-tabs, .filters, .page-foot, .stamps, .rp-open, .toast, .mini, .rp-foot, .cost-edit { display: none !important; }
+  .report { box-shadow: none; border: 0; }
+  body[data-print] .report:not([data-print-me]) { display: none !important; }
+}
 
 /* 글자 다듬기: 한글 줄바꿈은 단어 단위, 숫자는 폭을 맞춰 표가 흔들리지 않게 */
 body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; word-break: keep-all; overflow-wrap: anywhere; letter-spacing: -0.01em; }

@@ -42,21 +42,20 @@ export default function Home() {
   const [q, setQ] = useState("");
   const [showLow, setShowLow] = useState(false); // 영상 비중 낮은 공고 보기
   const [focus, setFocus] = useState(null);
-  const [solo, setSolo] = useState(null); // 리포트 단독 보기
   const [started, setStarted] = useState({}); // 분석 시작 시각
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     if (sp.get("bid")) setFocus(sp.get("bid"));
-    if (sp.get("report")) setSolo(sp.get("report"));
+    if (sp.get("report")) setFocus(sp.get("report")); // 예전 '리포트 크게 보기' 주소도 목록 화면에서 열기
   }, []);
+  // 리포트 보기: 카테고리(검토·분석/참여)가 있는 화면에서 그 리포트로 이동
   const openReport = (key) => {
-    setSolo(key);
-    window.history.pushState(null, "", `?report=${encodeURIComponent(key)}`);
-    window.scrollTo(0, 0);
-  };
-  const closeReport = () => {
-    setSolo(null);
-    window.history.pushState(null, "", window.location.pathname);
+    const b = data?.bids?.find((x) => x.key === key);
+    if (!b) return;
+    setOrgPick("");
+    setSection(b.status === "join" ? "join" : b.status === "review" ? "review" : "bids");
+    setFocus(key);
+    setTimeout(() => document.getElementById(`bid-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 250);
   };
   const [collecting, setCollecting] = useState(false);
   const [toast, setToast] = useState(null);
@@ -154,7 +153,6 @@ export default function Home() {
     const b = data.bids.find((x) => x.key === focus);
     if (!b) return;
     setSection(b.status === "review" ? "review" : b.status === "join" ? "join" : "bids");
-    if (b.close_at && new Date(b.close_at).getTime() < Date.now()) setHideClosed(false);
     setTimeout(() => document.getElementById(`bid-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
   }, [focus, data?.bids?.length]);
 
@@ -218,26 +216,6 @@ export default function Home() {
   const run = data?.lastRun;
 
   const anOf = (b) => ({ working: working === b.key, error: failed[b.key], started: started[b.key], retry: (force) => analyze(b.key, force) });
-  const soloBid = solo && data?.bids?.find((b) => b.key === solo);
-  if (solo) {
-    return (
-      <>
-        <div className="solo-bar">
-          <button className="mini" onClick={closeReport}>← 목록으로</button>
-          <button className="mini" onClick={() => window.print()}>인쇄 · PDF 저장</button>
-        </div>
-        {!data ? <div className="empty">불러오는 중</div>
-          : !soloBid ? <div className="empty"><strong>공고를 찾지 못했습니다</strong>마감되었거나 삭제된 공고일 수 있습니다.</div>
-          : <ReportCard bid={soloBid} onUpdate={update} section={soloBid.status === "join" ? "join" : "review"} say={say} solo
-              model={data?.costModel} onModel={(m) => setData((d) => ({ ...d, costModel: m }))}
-              onLocal={(key, patch) => setData((d) => ({ ...d, bids: d.bids.map((x) => (x.key === key ? { ...x, ...patch } : x)) }))}
-            onOpen={() => openReport(b.key)}
-              an={anOf(soloBid)} />}
-        {toast && <div className={`toast ${toast.bad ? "bad" : ""}`} role="status">{toast.text}</div>}
-      </>
-    );
-  }
-
   return (
     <>
       <div className="top">
@@ -639,7 +617,7 @@ function CostEditor({ model, onSaved, say }) {
 }
 
 /** 검토·분석 / 참여: 분석 리포트 형식 */
-function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onModel, onLocal, onOpen, solo }) {
+function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onModel, onLocal }) {
   const d = dday(b.close_at);
   const a = b.analysis;
   const r = a?.review;
@@ -669,7 +647,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
   const H = ({ children }) => <h3 className="rp-h"><span>{String(++no.n).padStart(2, "0")}</span>{children}</h3>;
 
   return (
-    <article id={`bid-${b.key}`} className={`report ${focused ? "focused" : ""}`}>
+    <article id={`bid-${b.key}`} data-key={b.key} className={`report ${focused ? "focused" : ""}`}>
       <header className="rp-head">
         <div className="rp-kicker">
           <span>{section === "join" ? "참여 결정 공고" : "입찰 검토 리포트"}</span>
@@ -683,7 +661,16 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
             return a ? <span className="rfp ng">제안요청서 없음</span> : null;
           })()}
         </div>
-        {!solo && onOpen && <button className="mini rp-open" onClick={onOpen}>리포트 크게 보기</button>}
+        {r && !an.working && (
+          <button className="mini rp-open" onClick={() => {
+            const el = document.getElementById(`bid-${b.key}`);
+            document.body.dataset.print = "1";
+            if (el) el.dataset.printMe = "1";
+            const done = () => { delete document.body.dataset.print; if (el) delete el.dataset.printMe; window.removeEventListener("afterprint", done); };
+            window.addEventListener("afterprint", done);
+            window.print();
+          }}>인쇄 · PDF</button>
+        )}
         <a className="rp-title" href={b.url} target="_blank" rel="noreferrer">
           {(a?.video?.only ?? titleVideoOnly(b.title)) ? <span className="prio only">영상 제작</span>
             : a?.video?.priority && <span className="prio">교수설계+영상</span>}
