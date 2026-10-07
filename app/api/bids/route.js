@@ -5,6 +5,17 @@ import { isExcluded as excluded } from "@/lib/watch-words";
 
 export const dynamic = "force-dynamic";
 
+// 같은 공고번호가 여러 차수로 있으면 최신 차수(정정공고)만
+function latestOnly(list) {
+  const top = new Map();
+  for (const b of list) {
+    if (String(b.key).startsWith("TEST-")) continue;
+    const cur = top.get(b.bid_no);
+    if (!cur || Number(b.bid_ord) > Number(cur.bid_ord)) top.set(b.bid_no, b);
+  }
+  return list.filter((b) => String(b.key).startsWith("TEST-") || top.get(b.bid_no) === b);
+}
+
 export async function GET() {
   try {
     const supa = db();
@@ -16,7 +27,7 @@ export async function GET() {
     const err = bids.error || runs.error;
     if (err) throw err;
     return NextResponse.json({
-      bids: bids.data.filter((b) => !excluded(b.title)),
+      bids: latestOnly(bids.data.filter((b) => !excluded(b.title))),
       lastRun: runs.data[0] || null,
       topic: settings.topic,
     });
