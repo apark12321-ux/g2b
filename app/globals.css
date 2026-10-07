@@ -504,3 +504,4 @@ textarea.full { min-height: 64px; resize: vertical; }
 .rp-score li.plus { color: #2e7d4f; } .rp-score li.minus { color: var(--seal); }
 @media (max-width: 640px) { .rp-stamp { flex-direction: row; gap: 4px; align-items: baseline; } }
 .rp-stamp { max-width: none; padding: 8px 12px 9px; line-height: 1.2; }
+.prio.only { background: #1f2a44; }

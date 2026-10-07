@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/components/api";
 import { at, dday, money, when } from "@/components/format";
 import { winScore } from "@/lib/score";
+import { titleVideoOnly } from "@/lib/video-score";
 
 const TABS = [
   ["all", "전체"],
@@ -150,7 +151,7 @@ export default function Home() {
         (!words.length || words.every((w) => nz(`${b.title}${b.org || ""}${b.demand_org || ""}`).includes(w)))
     );
     // 교수설계+영상 공고를 맨 위로
-    const p = (b) => (b.analysis?.video?.priority ? 0 : 1);
+    const p = (b) => ((b.analysis?.video?.only ?? titleVideoOnly(b.title)) ? 0 : b.analysis?.video?.priority ? 1 : 2);
     return list.map((b, i) => [b, i]).sort((x, y) => p(x[0]) - p(y[0]) || x[1] - y[1]).map((x) => x[0]);
   }, [data, rule, q, showLow, focus]);
   const lowCount = useMemo(() => (data ? data.bids.filter((b) => b.analysis?.video?.low).length : 0), [data]);
@@ -519,7 +520,8 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
           <span className={`rp-dday ${d.tone}`}>{d.big}{d.big !== "마감" ? "" : ""}</span>
         </div>
         <a className="rp-title" href={b.url} target="_blank" rel="noreferrer">
-          {a?.video?.priority && <span className="prio">교수설계+영상</span>}
+          {(a?.video?.only ?? titleVideoOnly(b.title)) ? <span className="prio only">영상 제작</span>
+            : a?.video?.priority && <span className="prio">교수설계+영상</span>}
           {revised && <span className="revised">정정</span>}
           {b.title}
         </a>
@@ -678,7 +680,8 @@ function BidRow({ bid: b, onUpdate, an, focused, detail, say, section }) {
 
       <div className="body">
         <a className="title" href={b.url} target="_blank" rel="noreferrer">
-          {b.analysis?.video?.priority && <span className="prio">교수설계+영상</span>}
+          {(b.analysis?.video?.only ?? titleVideoOnly(b.title)) ? <span className="prio only">영상 제작</span>
+            : b.analysis?.video?.priority && <span className="prio">교수설계+영상</span>}
           {revised && <span className="revised">정정</span>}
           {b.title}
         </a>
