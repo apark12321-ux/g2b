@@ -12,6 +12,12 @@ export async function PATCH(req, { params }) {
     patch.status = body.status;
   }
   if (body.memo !== undefined) patch.memo = String(body.memo).slice(0, 2000);
+  // 실제 수행기간(개월) 직접 지정: 분석 결과에 덮어씀
+  if (body.periodMonths !== undefined) {
+    const m = Number(body.periodMonths);
+    const { data: cur } = await db().from("bids").select("analysis").eq("key", decodeURIComponent(key)).single();
+    patch.analysis = { ...(cur?.analysis || {}), periodMonths: m > 0 && m <= 60 ? m : null };
+  }
   const { data, error } = await db().from("bids").update(patch).eq("key", decodeURIComponent(key)).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);

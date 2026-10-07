@@ -135,8 +135,9 @@ export default function Home() {
     setTimeout(() => document.getElementById(`bid-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
   }, [focus, data?.bids?.length]);
 
-  const update = async (key, patch) => {
+  const update = async (key, patch, localOnly = false) => {
     setData((d) => ({ ...d, bids: d.bids.map((b) => (b.key === key ? { ...b, ...patch } : b)) }));
+    if (localOnly) return; // 이미 서버에 저장된 값을 화면에만 반영
     try {
       await api(`/api/bids/${encodeURIComponent(key)}`, { method: "PATCH", body: JSON.stringify(patch) });
     } catch (e) {
@@ -247,6 +248,7 @@ export default function Home() {
       <div className="list">
         {shown.map((b) => (section === "review" || section === "join") ? <ReportCard key={b.key} bid={b} onUpdate={update} focused={focus === b.key} section={section} say={say}
             model={data?.costModel} onModel={(m) => setData((d) => ({ ...d, costModel: m }))}
+            onLocal={(key, patch) => setData((d) => ({ ...d, bids: d.bids.map((x) => (x.key === key ? { ...x, ...patch } : x)) }))}
             an={{ working: working === b.key, error: failed[b.key], retry: (force) => analyze(b.key, force) }} /> : <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key} detail={false} section={section} say={say}
             an={{ working: working === b.key, error: failed[b.key], retry: (force) => analyze(b.key, force) }} />)}
       </div>
@@ -561,7 +563,7 @@ function CostEditor({ model, onSaved, say }) {
 }
 
 /** 검토·분석 / 참여: 분석 리포트 형식 */
-function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onModel }) {
+function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onModel, onLocal }) {
   const d = dday(b.close_at);
   const a = b.analysis;
   const r = a?.review;
@@ -652,7 +654,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
             <section>
               <H>M/M 기준 원가 · 마진</H>
               <div className="rp-kpis">
-                <div><span>총 투입</span><b>{est.mm}M/M</b><small>고급 {est.mmHigh} · 중급 {est.mmMid} · 초급 {est.mmLow} · 월 {est.people}명 × {est.months}개월</small></div>
+                <div><span>투입 인력</span><b>{est.heads}명</b><small>평균 투입률 {Math.round(est.avgRate * 100)}% × {est.months}개월</small></div>
                 <div><span>예상 원가</span><b>{est.fmt.total}</b><small>범위 {est.fmt.lo} ~ {est.fmt.hi}</small></div>
                 <div><span>추정가격</span><b>{est.fmt.supply}</b><small>부가세 제외</small></div>
                 <div className={est.margin === null ? "" : est.margin < 0 ? "bad" : est.margin < 0.1 ? "warn" : "good"}>
@@ -661,20 +663,32 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                 </div>
               </div>
               <table className="rp-mm">
-                <thead><tr><th>역할</th><th>등급</th><th>M/M</th><th>인건비</th></tr></thead>
+                <thead><tr><th>역할</th><th>등급</th><th>인원</th><th>투입률 × {est.months}개월</th><th>인건비</th></tr></thead>
                 <tbody>
-                  {est.table.map((x, i) => <tr key={i}><td>{x.role}</td><td>{x.grade}</td><td>{x.mm}</td><td>{est.won(x.cost)}</td></tr>)}
-                  {est.inMM > 0 && <tr className="sub"><td>└ 내부 제작 인력</td><td>회사 설정 인건비</td><td>{est.inMM}</td><td>{est.won(est.inLabor)}</td></tr>}
-                  {est.inMM > 0 && <tr className="sub"><td>└ 그 외</td><td>노임단가</td><td>{est.exMM}</td><td>{est.won(est.exLabor)}</td></tr>}
-                  <tr className="sum"><td>① 직접인건비</td><td></td><td>{est.mm}</td><td>{est.fmt.labor}</td></tr>
-                  <tr><td>② 법정부담금</td><td colSpan={2}>4대보험 사업주분 등, ①의 {Math.round(est.model.burden * 100)}%</td><td>{est.fmt.burden}</td></tr>
-                  <tr><td>③ 직접경비</td><td colSpan={2}>{est.model.ownFacility ? "자체 스튜디오·장비 사용(제외), 출연·외주·소모품" : "장비·스튜디오·출연·외주"} + 월 고정경비 {Math.round(est.model.fixedMonthly / 10000)}만원 × {est.months}개월</td><td>{est.fmt.direct}</td></tr>
-                  <tr><td>④ 제경비</td><td colSpan={2}>사무실·관리 간접비, ①의 {Math.round(est.model.overhead * 100)}%</td><td>{est.fmt.overhead}</td></tr>
-                  <tr><td>⑤ 예비비</td><td colSpan={2}>지연·추가 요구 대비, ①~④의 {Math.round(est.model.contingency * 100)}%</td><td>{est.fmt.contingency}</td></tr>
-                  <tr className="sum"><td>총원가</td><td></td><td></td><td>{est.fmt.total}</td></tr>
-                  {est.supply && <tr className="sum"><td>예상 이익</td><td colSpan={2}>추정가격 {est.fmt.supply} − 총원가</td><td className={est.margin < 0 ? "neg" : ""}>{est.won(est.supply - est.cost.total)}</td></tr>}
+                  {est.table.map((x, i) => <tr key={i}><td>{x.role}</td><td>{x.grade}</td><td>{x.heads}명</td><td>{Math.round(x.rate * 100)}%</td><td>{est.won(x.cost)}</td></tr>)}
+                  {est.inMM > 0 && <tr className="sub"><td>└ 내부 제작 인력</td><td>회사 설정 인건비</td><td></td><td>{est.inMM}</td><td>{est.won(est.inLabor)}</td></tr>}
+                  {est.inMM > 0 && <tr className="sub"><td>└ 그 외</td><td>노임단가</td><td></td><td>{est.exMM}</td><td>{est.won(est.exLabor)}</td></tr>}
+                  <tr className="sum"><td>① 직접인건비</td><td></td><td>{est.heads}명</td><td>평균 {Math.round(est.avgRate * 100)}%</td><td>{est.fmt.labor}</td></tr>
+                  <tr><td>② 법정부담금</td><td colSpan={3}>4대보험 사업주분 등, ①의 {Math.round(est.model.burden * 100)}%</td><td>{est.fmt.burden}</td></tr>
+                  <tr><td>③ 직접경비</td><td colSpan={3}>{est.model.ownFacility ? "자체 스튜디오·장비 사용(제외), 출연·외주·소모품" : "장비·스튜디오·출연·외주"} + 월 고정경비 {Math.round(est.model.fixedMonthly / 10000)}만원 × {est.months}개월</td><td>{est.fmt.direct}</td></tr>
+                  <tr><td>④ 제경비</td><td colSpan={3}>사무실·관리 간접비, ①의 {Math.round(est.model.overhead * 100)}%</td><td>{est.fmt.overhead}</td></tr>
+                  <tr><td>⑤ 예비비</td><td colSpan={3}>지연·추가 요구 대비, ①~④의 {Math.round(est.model.contingency * 100)}%</td><td>{est.fmt.contingency}</td></tr>
+                  <tr className="sum"><td>총원가</td><td colSpan={3}></td><td>{est.fmt.total}</td></tr>
+                  {est.supply && <tr className="sum"><td>예상 이익</td><td colSpan={3}>추정가격 {est.fmt.supply} − 총원가</td><td className={est.margin < 0 ? "neg" : ""}>{est.won(est.supply - est.cost.total)}</td></tr>}
                 </tbody>
               </table>
+              <p className="rp-period">
+                수행기간 <b>{est.months}개월</b> ({est.monthsSource}) 기준 ·{" "}
+                <button className="mini" onClick={async () => {
+                  const v = window.prompt("실제 수행기간(개월)을 입력하세요", String(est.months));
+                  if (v === null) return;
+                  try {
+                    const res = await api(`/api/bids/${encodeURIComponent(b.key)}`, { method: "PATCH", body: JSON.stringify({ periodMonths: Number(v) }) });
+                    onLocal(b.key, { analysis: res.analysis });
+                    say(`수행기간을 ${v}개월로 바꿨습니다.`);
+                  } catch (e) { say(e.message, true); }
+                }}>기간 수정</button>
+              </p>
               <p className={`rp-conf c-${est.confidence}`}>추정 신뢰도 <b>{est.confidence}</b> — {est.basis}</p>
               {est.notes.map((x, i) => <p key={i} className="rp-note">{x}</p>)}
               <p className="rp-assume">
