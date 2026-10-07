@@ -1,19 +1,25 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
 import { getSettings } from "@/lib/keywords";
+import { sameBidKey, isNewer } from "@/lib/g2b";
 import { isExcluded as excluded } from "@/lib/watch-words";
 
 export const dynamic = "force-dynamic";
 
 // 같은 공고번호가 여러 차수로 있으면 최신 차수(정정공고)만
 function latestOnly(list) {
-  const top = new Map();
+  const pick = new Map();
+  const keyOf = new Map();
   for (const b of list) {
     if (String(b.key).startsWith("TEST-")) continue;
-    const cur = top.get(b.bid_no);
-    if (!cur || Number(b.bid_ord) > Number(cur.bid_ord)) top.set(b.bid_no, b);
+    const k1 = `no:${b.bid_no}`, k2 = `t:${sameBidKey(b)}`;
+    const g = keyOf.get(k1) || keyOf.get(k2) || k1;
+    keyOf.set(k1, g); keyOf.set(k2, g);
+    const cur = pick.get(g);
+    if (!cur || isNewer(b, cur)) pick.set(g, b);
   }
-  return list.filter((b) => String(b.key).startsWith("TEST-") || top.get(b.bid_no) === b);
+  const keep = new Set(pick.values());
+  return list.filter((b) => String(b.key).startsWith("TEST-") || keep.has(b));
 }
 
 export async function GET() {
