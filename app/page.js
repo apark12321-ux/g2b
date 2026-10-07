@@ -512,7 +512,7 @@ function CostEditor({ model, onSaved, say }) {
   const pc = (x) => Math.round(x * 100);
   const init = {
     internalPeople: M.internalPeople, internalMonthly: M.internalMonthly, ownFacility: M.ownFacility ? 1 : 0,
-    rateMid: M.rate.중급, rateLow: M.rate.초급, days: M.days, teamMax: M.teamMax,
+    rateHigh: M.rate.고급, rateMid: M.rate.중급, rateLow: M.rate.초급, days: M.days, teamMax: M.teamMax,
     burden: pc(M.burden), overhead: pc(M.overhead), rework: pc(M.rework), contingency: pc(M.contingency),
     fixedMonthly: Math.round(M.fixedMonthly / 10000), pmPerMonth: M.pmPerMonth, proposalMM: M.proposalMM,
   };
@@ -534,13 +534,14 @@ function CostEditor({ model, onSaved, say }) {
   );
   return (
     <div className="cost-edit">
-      <p>원가계산서 방식: ① 직접인건비(내부 인력은 최저 인건비, 넘치는 M/M만 노임단가) + ② 법정부담금 + ③ 직접경비 + ④ 제경비 + ⑤ 예비비. 고치면 모든 공고에 바로 다시 계산됩니다.</p>
+      <p>원가계산서 방식: ① 직접인건비(역할별 M/M × 등급 노임 적정 최대치) + ② 법정부담금 + ③ 직접경비 + ④ 제경비 + ⑤ 예비비. 고치면 모든 공고에 바로 다시 계산됩니다.</p>
       <div className="ce-grid">
-        {F("internalPeople", "내부 제작 인력", "명")}
-        {F("internalMonthly", "내부 인력 월 인건비", "원")}
+        {F("rateHigh", "고급 1일 노임 (PM·교수설계)", "원")}
+        {F("rateMid", "중급 1일 노임 (촬영·편집·디자인)", "원")}
+        {F("rateLow", "초급 1일 노임 (자막·검수)", "원")}
         {F("ownFacility", "자체 스튜디오·장비 (1=보유)", "")}
-        {F("rateMid", "추가 인력 중급 1일 노임", "원")}
-        {F("rateLow", "추가 인력 초급 1일 노임", "원")}
+        {F("internalPeople", "내부 제작 인력", "명")}
+        {F("internalMonthly", "내부 제작 인력 월 인건비 (0=노임단가)", "원")}
         {F("days", "월 근무일수", "일")}
         {F("teamMax", "동시 가용 인력", "명")}
         {F("burden", "법정부담금", "%")}
@@ -651,7 +652,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
             <section>
               <H>M/M 기준 원가 · 마진</H>
               <div className="rp-kpis">
-                <div><span>총 투입</span><b>{est.mm}M/M</b><small>중급 {est.mmMid} · 초급 {est.mmLow} · 월 {est.people}명 × {est.months}개월</small></div>
+                <div><span>총 투입</span><b>{est.mm}M/M</b><small>고급 {est.mmHigh} · 중급 {est.mmMid} · 초급 {est.mmLow} · 월 {est.people}명 × {est.months}개월</small></div>
                 <div><span>예상 원가</span><b>{est.fmt.total}</b><small>범위 {est.fmt.lo} ~ {est.fmt.hi}</small></div>
                 <div><span>추정가격</span><b>{est.fmt.supply}</b><small>부가세 제외</small></div>
                 <div className={est.margin === null ? "" : est.margin < 0 ? "bad" : est.margin < 0.1 ? "warn" : "good"}>
@@ -663,12 +664,12 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                 <thead><tr><th>역할</th><th>등급</th><th>M/M</th><th>인건비</th></tr></thead>
                 <tbody>
                   {est.table.map((x, i) => <tr key={i}><td>{x.role}</td><td>{x.grade}</td><td>{x.mm}</td><td>{est.won(x.cost)}</td></tr>)}
-                  <tr className="sub"><td>└ 내부 인력</td><td colSpan={1}>최저 인건비</td><td>{est.inMM}</td><td>{est.won(est.inLabor)}</td></tr>
-                  <tr className="sub"><td>└ 추가 인력</td><td colSpan={1}>노임단가</td><td>{est.exMM}</td><td>{est.won(est.exLabor)}</td></tr>
+                  {est.inMM > 0 && <tr className="sub"><td>└ 내부 제작 인력</td><td>회사 설정 인건비</td><td>{est.inMM}</td><td>{est.won(est.inLabor)}</td></tr>}
+                  {est.inMM > 0 && <tr className="sub"><td>└ 그 외</td><td>노임단가</td><td>{est.exMM}</td><td>{est.won(est.exLabor)}</td></tr>}
                   <tr className="sum"><td>① 직접인건비</td><td></td><td>{est.mm}</td><td>{est.fmt.labor}</td></tr>
                   <tr><td>② 법정부담금</td><td colSpan={2}>4대보험 사업주분 등, ①의 {Math.round(est.model.burden * 100)}%</td><td>{est.fmt.burden}</td></tr>
                   <tr><td>③ 직접경비</td><td colSpan={2}>{est.model.ownFacility ? "자체 스튜디오·장비 사용(제외), 출연·외주·소모품" : "장비·스튜디오·출연·외주"} + 월 고정경비 {Math.round(est.model.fixedMonthly / 10000)}만원 × {est.months}개월</td><td>{est.fmt.direct}</td></tr>
-                  <tr><td>④ 제경비</td><td colSpan={2}>추가 인력 인건비의 {Math.round(est.model.overhead * 100)}% (내부 시설은 보유)</td><td>{est.fmt.overhead}</td></tr>
+                  <tr><td>④ 제경비</td><td colSpan={2}>사무실·관리 간접비, ①의 {Math.round(est.model.overhead * 100)}%</td><td>{est.fmt.overhead}</td></tr>
                   <tr><td>⑤ 예비비</td><td colSpan={2}>지연·추가 요구 대비, ①~④의 {Math.round(est.model.contingency * 100)}%</td><td>{est.fmt.contingency}</td></tr>
                   <tr className="sum"><td>총원가</td><td></td><td></td><td>{est.fmt.total}</td></tr>
                   {est.supply && <tr className="sum"><td>예상 이익</td><td colSpan={2}>추정가격 {est.fmt.supply} − 총원가</td><td className={est.margin < 0 ? "neg" : ""}>{est.won(est.supply - est.cost.total)}</td></tr>}
@@ -677,7 +678,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
               <p className={`rp-conf c-${est.confidence}`}>추정 신뢰도 <b>{est.confidence}</b> — {est.basis}</p>
               {est.notes.map((x, i) => <p key={i} className="rp-note">{x}</p>)}
               <p className="rp-assume">
-                내부 인력 {est.model.internalPeople}명 × 월 {Math.round(est.model.internalMonthly / 10000)}만원(2026년 최저임금 월 환산)이 먼저 맡고, 넘치는 {est.exMM}M/M만 추가 인력 노임단가: 중급 {est.model.rate.중급.toLocaleString("ko-KR")}원 · 초급 {est.model.rate.초급.toLocaleString("ko-KR")}원/일 × {est.model.days}일
+                인건비는 적정 최대치: PM·교수설계 고급 {est.model.rate.고급.toLocaleString("ko-KR")}원, 촬영·편집·디자인 중급 {est.model.rate.중급.toLocaleString("ko-KR")}원, 자막·검수 초급 {est.model.rate.초급.toLocaleString("ko-KR")}원/일 × {est.model.days}일
                 {est.model.custom ? " (회사 설정)" : ` (${LABOR.source})`}, 가용 인력 {est.model.teamMax}명.
                 {" "}<button className="mini" onClick={() => setEditCost(!editCost)}>{editCost ? "닫기" : "원가 기준 수정"}</button>
               </p>
