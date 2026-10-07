@@ -4,7 +4,7 @@ import { db } from "@/lib/supabase";
 import { fillGaps } from "@/lib/fill-gaps";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // 제안요청서를 꼼꼼히 읽느라 오래 걸릴 수 있음
 
 export async function POST(req) {
   const { key, force } = await req.json().catch(() => ({}));

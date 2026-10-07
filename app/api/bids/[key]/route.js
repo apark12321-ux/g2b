@@ -12,6 +12,11 @@ export async function PATCH(req, { params }) {
     patch.status = body.status;
   }
   if (body.memo !== undefined) patch.memo = String(body.memo).slice(0, 2000);
+  // 비용 항목 끄기/켜기
+  if (Array.isArray(body.costOff)) {
+    const { data: cur } = await db().from("bids").select("analysis").eq("key", decodeURIComponent(key)).single();
+    patch.analysis = { ...(cur?.analysis || {}), costOff: body.costOff.map(String).slice(0, 50) };
+  }
   // 실제 수행기간(개월) 직접 지정: 분석 결과에 덮어씀
   if (body.periodMonths !== undefined) {
     const m = Number(body.periodMonths);

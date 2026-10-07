@@ -34,17 +34,29 @@ export default function Home() {
   const [q, setQ] = useState("");
   const [showLow, setShowLow] = useState(false); // 영상 비중 낮은 공고 보기
   const [focus, setFocus] = useState(null);
+  const [solo, setSolo] = useState(null); // 리포트 단독 보기
+  const [started, setStarted] = useState({}); // 분석 시작 시각
   useEffect(() => {
-    const k = new URLSearchParams(window.location.search).get("bid");
-    if (k) setFocus(k);
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("bid")) setFocus(sp.get("bid"));
+    if (sp.get("report")) setSolo(sp.get("report"));
   }, []);
+  const openReport = (key) => {
+    setSolo(key);
+    window.history.pushState(null, "", `?report=${encodeURIComponent(key)}`);
+    window.scrollTo(0, 0);
+  };
+  const closeReport = () => {
+    setSolo(null);
+    window.history.pushState(null, "", window.location.pathname);
+  };
   const [collecting, setCollecting] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const say = (text, bad, undo) => {
-    setToast({ text, bad, undo });
+  const say = (text, bad, undo, action) => {
+    setToast({ text, bad, undo, action });
     clearTimeout(say.t);
-    say.t = setTimeout(() => setToast(null), undo ? 6000 : 3500);
+    say.t = setTimeout(() => setToast(null), undo || action ? 8000 : 3500);
   };
 
   const load = useCallback(async () => {
@@ -92,11 +104,14 @@ export default function Home() {
   const [tried, setTried] = useState({}); // 이번 접속에서 이미 확인한 공고
   const analyze = useCallback(async (key, force = false) => {
     setWorking(key);
+    setStarted((t) => ({ ...t, [key]: Date.now() }));
     setTried((t) => ({ ...t, [key]: true }));
     setFailed((f) => { const n = { ...f }; delete n[key]; return n; });
     try {
+      const t0 = Date.now();
       const a = await api("/api/analyze", { method: "POST", body: JSON.stringify({ key, force }) });
       setAnalysis(key, a);
+      if (Date.now() - t0 > 15000) analyze.done?.(key); // 오래 걸린 분석은 끝났다고 알림
     } catch (e) {
       // 한 번 실패하면 잠시 뒤 자동으로 다시 시도
       if (!analyze.retried) analyze.retried = new Set();
@@ -117,7 +132,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 6 || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 7 || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -145,6 +160,8 @@ export default function Home() {
       load();
     }
   };
+
+  analyze.done = (key) => say("분석이 끝났습니다.", false, null, { label: "리포트 보기", fn: () => openReport(key) });
 
   const base = useMemo(() => {
     if (!data) return [];
@@ -188,6 +205,27 @@ export default function Home() {
     section === "join" ? joinList :
     bidsOnly.filter((b) => b.status === "new");
   const run = data?.lastRun;
+
+  const anOf = (b) => ({ working: working === b.key, error: failed[b.key], started: started[b.key], retry: (force) => analyze(b.key, force) });
+  const soloBid = solo && data?.bids?.find((b) => b.key === solo);
+  if (solo) {
+    return (
+      <>
+        <div className="solo-bar">
+          <button className="mini" onClick={closeReport}>← 목록으로</button>
+          <button className="mini" onClick={() => window.print()}>인쇄 · PDF 저장</button>
+        </div>
+        {!data ? <div className="empty">불러오는 중</div>
+          : !soloBid ? <div className="empty"><strong>공고를 찾지 못했습니다</strong>마감되었거나 삭제된 공고일 수 있습니다.</div>
+          : <ReportCard bid={soloBid} onUpdate={update} section={soloBid.status === "join" ? "join" : "review"} say={say} solo
+              model={data?.costModel} onModel={(m) => setData((d) => ({ ...d, costModel: m }))}
+              onLocal={(key, patch) => setData((d) => ({ ...d, bids: d.bids.map((x) => (x.key === key ? { ...x, ...patch } : x)) }))}
+            onOpen={() => openReport(b.key)}
+              an={anOf(soloBid)} />}
+        {toast && <div className={`toast ${toast.bad ? "bad" : ""}`} role="status">{toast.text}</div>}
+      </>
+    );
+  }
 
   return (
     <>
@@ -249,7 +287,7 @@ export default function Home() {
         {shown.map((b) => (section === "review" || section === "join") ? <ReportCard key={b.key} bid={b} onUpdate={update} focused={focus === b.key} section={section} say={say}
             model={data?.costModel} onModel={(m) => setData((d) => ({ ...d, costModel: m }))}
             onLocal={(key, patch) => setData((d) => ({ ...d, bids: d.bids.map((x) => (x.key === key ? { ...x, ...patch } : x)) }))}
-            an={{ working: working === b.key, error: failed[b.key], retry: (force) => analyze(b.key, force) }} /> : <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key} detail={false} section={section} say={say}
+            an={anOf(b)} /> : <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key} detail={false} section={section} say={say}
             an={{ working: working === b.key, error: failed[b.key], retry: (force) => analyze(b.key, force) }} />)}
       </div>
 
@@ -263,6 +301,7 @@ export default function Home() {
         <div className={`toast ${toast.bad ? "bad" : ""}`} role="status">
           {toast.text}
           {toast.undo && <button className="toast-undo" onClick={() => { toast.undo(); setToast(null); }}>되돌리기</button>}
+          {toast.action && <button className="toast-undo" onClick={() => { toast.action.fn(); setToast(null); }}>{toast.action.label}</button>}
         </div>
       )}
     </>
@@ -508,6 +547,22 @@ function Review({ bid: b, an }) {
   );
 }
 
+/** 분석 진행 안내: 단계와 경과 시간 */
+function AnalyzeProgress({ started }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const sec = Math.max(0, Math.round((now - (started || now)) / 1000));
+  const steps = ["첨부 목록·제안요청서 확인", "제안요청서·과업지시서 내려받기", "문서 전체 읽기 (표·요구사항 포함)", "분량·인력·비용 항목 추출", "원가·마진·리스크 산정"];
+  const at = sec < 4 ? 0 : sec < 15 ? 1 : sec < 60 ? 2 : sec < 100 ? 3 : 4;
+  return (
+    <div className="an-progress">
+      <div className="ap-head"><span className="dot on" aria-hidden /> 제안요청서를 꼼꼼히 분석하는 중 · {Math.floor(sec / 60) ? `${Math.floor(sec / 60)}분 ` : ""}{sec % 60}초</div>
+      <ol>{steps.map((x, i) => <li key={i} className={i < at ? "done" : i === at ? "now" : ""}>{x}</li>)}</ol>
+      <p>문서가 길면 1~4분 걸립니다. 다른 공고를 보셔도 되고, 끝나면 "리포트 보기" 알림이 뜹니다.</p>
+    </div>
+  );
+}
+
 /** 회사 원가 기준 (모든 리포트에 공통 적용) */
 function CostEditor({ model, onSaved, say }) {
   const M = costModel(model);
@@ -563,7 +618,7 @@ function CostEditor({ model, onSaved, say }) {
 }
 
 /** 검토·분석 / 참여: 분석 리포트 형식 */
-function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onModel, onLocal }) {
+function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onModel, onLocal, onOpen, solo }) {
   const d = dday(b.close_at);
   const a = b.analysis;
   const r = a?.review;
@@ -607,6 +662,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
             return a ? <span className="rfp ng">제안요청서 없음</span> : null;
           })()}
         </div>
+        {!solo && onOpen && <button className="mini rp-open" onClick={onOpen}>리포트 크게 보기</button>}
         <a className="rp-title" href={b.url} target="_blank" rel="noreferrer">
           {(a?.video?.only ?? titleVideoOnly(b.title)) ? <span className="prio only">영상 제작</span>
             : a?.video?.priority && <span className="prio">교수설계+영상</span>}
@@ -631,12 +687,13 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
         {a?.presenter && <div className="rp-presenter"><dt>제안발표</dt><dd><b>{a.presenter}</b> <Est k="presenter" /></dd></div>}
       </dl>
 
+      {r && an.working && <div className="rp-body"><AnalyzeProgress started={an.started} /></div>}
       {!r ? (
         <div className="rp-body">
           {an.error ? (
             <div className="an-wait an-err">분석하지 못했습니다: {an.error} <button className="mini" onClick={() => an.retry(true)}>다시 시도</button></div>
           ) : (
-            <div className="an-wait"><span className={an.working ? "dot on" : "dot"} aria-hidden />{an.working ? "첨부 문서를 읽고 리포트를 작성하는 중입니다" : "분석 대기 중"}</div>
+            an.working ? <AnalyzeProgress started={an.started} /> : <div className="an-wait"><span className="dot" aria-hidden />분석 대기 중</div>
           )}
         </div>
       ) : (
@@ -684,6 +741,31 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   </>}
                 </tbody>
               </table>
+              {est.items?.length > 0 && (
+                <div className="rp-items">
+                  <h4>제안요청서에서 찾은 비용 항목 <small>체크를 끄면 원가에서 뺍니다</small></h4>
+                  <table className="rp-mm">
+                    <thead><tr><th></th><th>항목</th><th>근거 (제안요청서)</th><th>반영</th></tr></thead>
+                    <tbody>
+                      {est.items.map((x) => (
+                        <tr key={x.key} className={x.off ? "off" : ""}>
+                          <td><input type="checkbox" checked={!x.off} disabled={x.auto} onChange={async (e) => {
+                            const offNow = new Set(a.costOff || []);
+                            e.target.checked ? offNow.delete(x.key) : offNow.add(x.key);
+                            try {
+                              const res = await api(`/api/bids/${encodeURIComponent(b.key)}`, { method: "PATCH", body: JSON.stringify({ costOff: [...offNow] }) });
+                              onLocal(b.key, { analysis: res.analysis });
+                            } catch (err) { say(err.message, true); }
+                          }} /></td>
+                          <td><b>{x.label}</b><br /><small>{x.type === "expense" ? "외부 지출" : "추가 작업"} · {x.how}</small></td>
+                          <td className="ev">{x.evidence}</td>
+                          <td>{x.type === "expense" ? (x.amount ? est.won(x.amount) : "-") : (x.mm ? `+${x.mm}M/M` : "-")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
               <p className="rp-period">
                 수행기간 <b>{est.months}개월</b>
                 {est.start && est.monthsSource === "문서" && est.endText

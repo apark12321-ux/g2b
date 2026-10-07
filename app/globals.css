@@ -554,3 +554,21 @@ textarea.full { min-height: 64px; resize: vertical; }
 .rp-warn { margin: 0 0 10px; padding: 8px 10px; font-size: 13px; font-weight: 500; color: var(--seal); background: color-mix(in srgb, var(--seal) 8%, var(--sheet)); border-left: 4px solid var(--seal); }
 .stamps.solo { align-items: center; }
 .stamp-hint { font-size: 11px; color: var(--muted); text-align: center; white-space: nowrap; margin-top: 2px; }
+/* 분석 진행 */
+.an-progress { border: 1px solid var(--line); background: var(--paper); border-radius: 6px; padding: 12px 14px; }
+.ap-head { font-weight: 700; font-size: 14px; display: flex; gap: 8px; align-items: center; }
+.an-progress ol { margin: 8px 0 6px; padding-left: 20px; font-size: 13px; color: var(--muted); }
+.an-progress li.done { color: #2e7d4f; } .an-progress li.done::marker { content: "✓ "; }
+.an-progress li.now { color: var(--ink); font-weight: 700; }
+.an-progress p { margin: 0; font-size: 12px; color: var(--muted); }
+/* 비용 항목 */
+.rp-items { margin-top: 14px; }
+.rp-items h4 { margin: 0 0 4px; font-size: 13.5px; }
+.rp-items h4 small { font-weight: 400; color: var(--muted); margin-left: 6px; }
+.rp-items td.ev { font-size: 12px; color: var(--muted); }
+.rp-items tr.off td { opacity: .45; text-decoration: line-through; }
+.rp-items td:first-child { width: 24px; }
+/* 리포트 크게 보기 / 단독 화면 */
+.rp-open { position: absolute; right: 0; bottom: 10px; }
+.solo-bar { display: flex; justify-content: space-between; margin: 0 0 12px; }
+@media print { .nav, .solo-bar, .stamps, .rp-open, .toast, .mini { display: none !important; } .report { box-shadow: none; border: 0; } }
