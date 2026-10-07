@@ -156,14 +156,16 @@ export default function Home() {
   }, [data, rule, q, hideClosed, showLow, focus]);
   const lowCount = useMemo(() => (data ? data.bids.filter((b) => b.analysis?.video?.low).length : 0), [data]);
 
+  // 검토로 넘긴 공고는 '입찰 공고' 쪽(전체·신규 등)에서 빼고 '검토·분석'에서만 보임
+  const bidsOnly = useMemo(() => base.filter((b) => b.status !== "review" || focus === b.key), [base, focus]);
   const counts = useMemo(() => {
-    const c = { all: base.length, new: 0, review: 0, join: 0, pass: 0 };
-    base.forEach((b) => c[b.status]++);
+    const c = { all: bidsOnly.length, new: 0, review: 0, join: 0, pass: 0 };
+    bidsOnly.forEach((b) => c[b.status]++);
     return c;
-  }, [base]);
+  }, [bidsOnly]);
 
   const reviewList = base.filter((b) => b.status === "review");
-  const shown = section === "review" ? reviewList : tab === "all" ? base : base.filter((b) => b.status === tab);
+  const shown = section === "review" ? reviewList : tab === "all" ? bidsOnly : bidsOnly.filter((b) => b.status === tab);
   const run = data?.lastRun;
 
   return (
