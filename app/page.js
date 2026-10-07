@@ -536,7 +536,7 @@ function CostEditor({ model, onSaved, say }) {
   );
   return (
     <div className="cost-edit">
-      <p>원가계산서 방식: ① 직접인건비(역할별 M/M × 등급 노임 적정 최대치) + ② 법정부담금 + ③ 직접경비 + ④ 제경비 + ⑤ 예비비. 고치면 모든 공고에 바로 다시 계산됩니다.</p>
+      <p>직접원가 = ① 직접인건비(적정 최대 노임) + ② 법정부담금 + ③ 직접경비. 제경비·예비비는 원가에 넣지 않고 마진 안의 몫으로 표시합니다. 고치면 모든 공고에 바로 다시 계산됩니다.</p>
       <div className="ce-grid">
         {F("rateHigh", "고급 1일 노임 (PM·교수설계)", "원")}
         {F("rateMid", "중급 1일 노임 (촬영·편집·디자인)", "원")}
@@ -658,11 +658,11 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
               )}
               <div className="rp-kpis">
                 <div><span>투입 인력</span><b>{est.heads}명</b><small>평균 투입률 {Math.round(est.avgRate * 100)}% × {est.months}개월</small></div>
-                <div><span>예상 원가</span><b>{est.fmt.total}</b><small>범위 {est.fmt.lo} ~ {est.fmt.hi}</small></div>
+                <div><span>직접원가</span><b>{est.fmt.total}</b><small>범위 {est.fmt.lo} ~ {est.fmt.hi}</small></div>
                 <div><span>추정가격</span><b>{est.fmt.supply}</b><small>부가세 제외</small></div>
                 <div className={est.margin === null ? "" : est.margin < 0 ? "bad" : est.margin < 0.1 ? "warn" : "good"}>
-                  <span>예상 마진</span><b>{est.margin === null ? "-" : `${Math.round(est.margin * 100)}%`}</b>
-                  <small>{est.margin === null ? "가격 미공개" : `범위 ${Math.round(est.range.marginLo * 100)}% ~ ${Math.round(est.range.marginHi * 100)}%`}</small>
+                  <span>마진 (제경비·예비비 포함)</span><b>{est.margin === null ? "-" : `${Math.round(est.margin * 100)}%`}</b>
+                  <small>{est.margin === null ? "가격 미공개" : `순이익 ${Math.round((est.net / est.supply) * 100)}% · 범위 ${Math.round(est.range.marginLo * 100)}~${Math.round(est.range.marginHi * 100)}%`}</small>
                 </div>
               </div>
               <table className="rp-mm">
@@ -674,10 +674,14 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   <tr className="sum"><td>① 직접인건비</td><td></td><td>{est.heads}명</td><td>평균 {Math.round(est.avgRate * 100)}%</td><td>{est.fmt.labor}</td></tr>
                   <tr><td>② 법정부담금</td><td colSpan={3}>4대보험 사업주분 등, ①의 {Math.round(est.model.burden * 100)}%</td><td>{est.fmt.burden}</td></tr>
                   <tr><td>③ 직접경비</td><td colSpan={3}>{est.model.ownFacility ? "자체 스튜디오·장비 사용(제외), 출연·외주·소모품" : "장비·스튜디오·출연·외주"} + 월 고정경비 {Math.round(est.model.fixedMonthly / 10000)}만원 × {est.months}개월</td><td>{est.fmt.direct}</td></tr>
-                  <tr><td>④ 제경비</td><td colSpan={3}>사무실·관리 간접비, ①의 {Math.round(est.model.overhead * 100)}%</td><td>{est.fmt.overhead}</td></tr>
-                  <tr><td>⑤ 예비비</td><td colSpan={3}>지연·추가 요구 대비, ①~④의 {Math.round(est.model.contingency * 100)}%</td><td>{est.fmt.contingency}</td></tr>
-                  <tr className="sum"><td>총원가</td><td colSpan={3}></td><td>{est.fmt.total}</td></tr>
-                  {est.supply && <tr className="sum"><td>예상 이익</td><td colSpan={3}>추정가격 {est.fmt.supply} − 총원가</td><td className={est.margin < 0 ? "neg" : ""}>{est.won(est.supply - est.cost.total)}</td></tr>}
+                  <tr className="sum"><td>직접원가 (①+②+③)</td><td colSpan={3}></td><td>{est.fmt.total}</td></tr>
+                  {est.supply && <>
+                    <tr><td>추정가격</td><td colSpan={3}>부가세 제외</td><td>{est.fmt.supply}</td></tr>
+                    <tr className="sum"><td>마진</td><td colSpan={3}>추정가격 − 직접원가 ({Math.round(est.margin * 100)}%)</td><td className={est.margin < 0 ? "neg" : ""}>{est.fmt.margin}</td></tr>
+                    <tr className="sub"><td>└ 제경비 몫</td><td colSpan={3}>직접인건비의 {Math.round(est.model.overhead * 100)}%</td><td>{est.fmt.overhead}</td></tr>
+                    <tr className="sub"><td>└ 예비비 몫</td><td colSpan={3}>직접원가의 {Math.round(est.model.contingency * 100)}%</td><td>{est.fmt.contingency}</td></tr>
+                    <tr className="sub"><td>└ 순이익</td><td colSpan={3}>{Math.round((est.net / est.supply) * 100)}%</td><td className={est.net < 0 ? "neg" : ""}>{est.fmt.net}</td></tr>
+                  </>}
                 </tbody>
               </table>
               <p className="rp-period">
