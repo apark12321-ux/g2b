@@ -834,3 +834,28 @@ button, .btn, .mini, .stamp, .file, .org-tabs button { touch-action: manipulatio
   .sum-kpis b { font-size: 18px; }
   .rp-fold > *:not(summary) { margin-left: 8px; margin-right: 8px; }
 }
+/* 사실/추정 꼬리표 */
+.tg { font-style: normal; font-size: 10.5px; font-weight: 700; border-radius: 3px; padding: 0 5px; margin-left: 4px; vertical-align: 1px; white-space: nowrap; }
+.tg.fact { color: #2e7d4f; border: 1px solid color-mix(in srgb, #2e7d4f 45%, transparent); }
+.tg.est { color: #b7791f; border: 1px dashed color-mix(in srgb, #b7791f 60%, transparent); }
+.sum-box li { line-height: 1.5; }
+.sum-box small.q { display: block; margin: 1px 0 2px 2px; font-size: 11.5px; color: var(--muted); }
+/* 핵심 사실 */
+.rp-facts .hs { font-size: 11.5px; font-weight: 400; color: var(--muted); margin-left: 6px; }
+.fx-group { border: 1px solid var(--line); border-radius: 6px; margin-top: 10px; overflow: hidden; }
+.fx-group h4 { margin: 0; padding: 6px 10px; font-size: 13px; background: var(--paper); border-bottom: 1px solid var(--line); }
+.fx-group dl { margin: 0; }
+.fx-group dl > div { display: grid; grid-template-columns: 170px 1fr; border-top: 1px solid var(--line); }
+.fx-group dl > div:first-child { border-top: 0; }
+.fx-group dt { padding: 7px 10px; font-size: 12.5px; font-weight: 700; color: var(--muted); background: color-mix(in srgb, var(--paper) 60%, transparent); }
+.fx-group dd { margin: 0; padding: 7px 10px; font-size: 13.5px; line-height: 1.55; }
+.fx-group .miss dd { color: var(--pass); font-size: 12.5px; }
+.fx-group .src { display: inline-block; margin-left: 6px; font-size: 10.5px; color: #2e7d4f; border: 1px solid color-mix(in srgb, #2e7d4f 35%, transparent); border-radius: 3px; padding: 0 4px; }
+.fx-group details.qt { margin-top: 3px; font-size: 12px; color: var(--muted); }
+.fx-group details.qt summary { cursor: pointer; display: inline; color: var(--indigo); font-size: 11.5px; }
+@media (max-width: 640px) {
+  .fx-group dl > div { grid-template-columns: 1fr; }
+  .fx-group dt { padding: 6px 10px 0; background: none; }
+  .fx-group dd { padding: 2px 10px 8px; }
+}
+@media print { .fx-group details.qt > *:not(summary) { display: block; } }

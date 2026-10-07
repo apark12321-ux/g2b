@@ -140,7 +140,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 10 || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 11 || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -816,23 +816,34 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                 </div>
                 <div className="sum-kpis">
                   <div className={est?.margin == null ? "" : est.margin < 0 ? "bad" : est.margin < 0.1 ? "warn" : "good"}>
-                    <span>예상 마진</span><b>{est?.margin == null ? "-" : pct(est.margin)}</b>
+                    <span>예상 마진 <em className="tg est">추정</em></span><b>{est?.margin == null ? "-" : pct(est.margin)}</b>
                     <small>{est?.net != null && est.supply ? `순이익 ${pct(est.net / est.supply)}` : "가격 미공개"}</small>
                   </div>
-                  <div><span>투입 인력</span><b>{est ? `${est.heads}명` : "-"}</b><small>{est ? `${est.months}개월 · 평균 ${pct(est.avgRatePlan)}` : ""}</small></div>
-                  <div><span>마감 · 발표</span><b>{md(ms.close)}</b><small>발표 {md(ms.present)}{ms.presentEst ? " 예상" : ""}</small></div>
-                  <div><span>대금</span><b className="sm">{a.payment?.method ? a.payment.method.replace("완료 후 일괄 지급(후불)", "후불 일괄") : "후불(추정)"}</b><small>{cash ? `선투입 ${est.won(cash.peak)}` : ""}</small></div>
+                  <div><span>투입 인력 <em className="tg est">추정</em></span><b>{est ? `${est.heads}명` : "-"}</b><small>{est ? `${est.months}개월 · 평균 ${pct(est.avgRatePlan)}` : ""}</small></div>
+                  <div><span>입찰 마감 <em className="tg fact">공고</em></span><b>{md(ms.close)}</b><small>{ms.presentEst ? `발표일 미기재 (${md(ms.present)}경 예상)` : `발표 ${md(ms.present)}`}</small></div>
+                  <div><span>대금 지급 <em className={`tg ${a.payment?.method ? "fact" : "est"}`}>{a.payment?.method ? "문서" : "미기재"}</em></span><b className="sm">{a.payment?.method ? a.payment.method.replace("완료 후 일괄 지급(후불)", "후불 일괄") : "문서에 조건 없음"}</b><small>{cash ? `선투입 약 ${est.won(cash.peak)} (추정)` : ""}</small></div>
                 </div>
                 {top.length > 0 && (
                   <div className="sum-box">
-                    <h4>핵심 리스크</h4>
-                    <ul>{top.map((x, i) => <li key={i}><span className={`lv lv-${x.level === "높음" ? "hi" : "mid"}`}>{x.level}</span>{x.item}</li>)}</ul>
+                    <h4>핵심 리스크 <small>“문서” = 원문 근거 · “추정” = 원가·일정 계산 결과</small></h4>
+                    <ul>{top.map((x, i) => (
+                      <li key={i}>
+                        <span className={`lv lv-${x.level === "높음" ? "hi" : "mid"}`}>{x.level}</span>{x.item}
+                        <em className={`tg ${x.core ? "est" : "fact"}`}>{x.core ? "추정" : "문서"}</em>
+                        {!x.core && x.detail && <small className="q">“{x.detail}”</small>}
+                      </li>
+                    ))}</ul>
                   </div>
                 )}
                 {gate.length > 0 && (
                   <div className="sum-box">
                     <h4>입찰 가능 여부 <small>{gate.filter((g) => done.has(g.id)).length}/{gate.length} 확인</small></h4>
-                    <ul className="sum-gate">{gate.map((g) => <li key={g.id} className={done.has(g.id) ? "ok" : g.level === "block" ? "no" : ""}>{done.has(g.id) ? "✓" : g.level === "block" ? "✕" : "○"} {g.item}</li>)}</ul>
+                    <ul className="sum-gate">{gate.map((g) => (
+                      <li key={g.id} className={done.has(g.id) ? "ok" : g.level === "block" ? "no" : ""}>
+                        {done.has(g.id) ? "✓" : g.level === "block" ? "✕" : "○"} {g.item}
+                        {g.evidence?.[0] && <small className="q">“{g.evidence[0]}”</small>}
+                      </li>
+                    ))}</ul>
                   </div>
                 )}
                 <p className="rp-disclaimer">자동 분석한 <b>검토 참고 자료</b>입니다. 추정값이 포함되어 있으니 원문과 함께 최종 확인 후 결정하세요.</p>
@@ -840,7 +851,29 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
             );
           })()}
 
-          <section>
+          {a.facts ? (
+            <section className="rp-facts">
+              <H>핵심 사실 <small className="hs">문서·나라장터에 적힌 내용 그대로 · 없는 항목은 비워 둠</small></H>
+              {a.facts.map((g) => (
+                <div key={g.group} className="fx-group">
+                  <h4>{g.group}</h4>
+                  <dl>
+                    {g.rows.map((r, i) => (
+                      <div key={i} className={r.missing ? "miss" : ""}>
+                        <dt>{r.label}</dt>
+                        <dd>
+                          {r.value}
+                          {!r.missing && r.source && <small className="src">{r.source}</small>}
+                          {!r.missing && r.quote && r.quote !== r.value && <details className="qt"><summary>원문</summary>“{r.quote}”</details>}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              ))}
+            </section>
+          ) : (
+            <section>
             <H>사업 개요</H>
             {has(a.summary) && !/AI 요약 아님|찾지 못했습니다/.test(a.summary) && <p className="rp-lead">{a.summary}</p>}
             <div className="rp-two">
@@ -855,6 +888,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
               </div>
             </div>
           </section>
+          )}
 
           {est && (
             <details className="rp-fold"><summary>원가 · 인력 상세 <small>{est.owner ? "발주처 원가 역산 · " : ""}역할별 투입·비용 항목</small></summary>
