@@ -789,10 +789,23 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
 }
 
 function Stamps({ bid: b, onUpdate, an, say, section }) {
+  // 신규 공고: 검토만 (누르면 분석 시작)
+  if (section === "bids") {
+    return (
+      <div className="stamps solo" aria-label="검토">
+        <button className="stamp review" title="검토·분석으로 보내고 리스크·원가 분석 시작"
+          onClick={() => { onUpdate(b.key, { status: "review" }); say("검토·분석으로 옮겨 분석을 시작합니다. 분석이 끝나면 참여·불참을 고르세요."); an.retry(false); }}>
+          검토
+        </button>
+        <span className="stamp-hint">누르면 분석</span>
+      </div>
+    );
+  }
   return (
     <div className="stamps" aria-label="검토 상태">
       {STAMPS.filter(([id]) =>
-        section === "review" ? true : section === "join" ? id !== "review" : id !== "join"
+        // 검토·분석: 참여·불참 / 참여: 참여(해제)·불참
+        id !== "review"
       ).map(([id, label]) => {
         const on = b.status === id;
         return (

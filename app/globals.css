@@ -552,3 +552,5 @@ textarea.full { min-height: 64px; resize: vertical; }
 .rp-mm tr.sub td { color: var(--muted); font-size: 12px; }
 .rp-period { margin: 8px 0 0; font-size: 13px; } .rp-period b { color: var(--ink); }
 .rp-warn { margin: 0 0 10px; padding: 8px 10px; font-size: 13px; font-weight: 500; color: var(--seal); background: color-mix(in srgb, var(--seal) 8%, var(--sheet)); border-left: 4px solid var(--seal); }
+.stamps.solo { align-items: center; }
+.stamp-hint { font-size: 11px; color: var(--muted); text-align: center; white-space: nowrap; margin-top: 2px; }
