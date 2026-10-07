@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/components/api";
 import { at, dday, money, when } from "@/components/format";
-import { winScore } from "@/lib/score";
+import { winScore, reviewRisks, BOILERPLATE } from "@/lib/score";
+import { estimateCost, COST } from "@/lib/cost";
 import { titleVideoOnly } from "@/lib/video-score";
 
 const TABS = [
@@ -501,9 +502,10 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
   const a = b.analysis;
   const r = a?.review;
   const ws = winScore(b, a);
-  const noDP = (x) => !/직접\s*생산/.test(typeof x === "string" ? x : `${x.item} ${x.detail || ""}`);
-  const risks = (r?.risks || []).filter(noDP);
-  const checklist = (r?.checklist || []).filter(noDP);
+  const risks = r ? reviewRisks(b, a) : [];
+  const checklist = (r?.checklist || []).filter((x) => !BOILERPLATE.test(x));
+  const est = r ? estimateCost(b, a) : null;
+  const keyRisks = risks.filter((x) => x.level !== "참고").slice(0, 3).map((x) => x.item);
   const has = (x) => (Array.isArray(x) ? x.length > 0 : !!x && x !== "문서에 없음");
   const staff = (a?.staff || []).filter((x) => has(x?.role)).map((x) => (has(x.detail) ? `${x.role} (${x.detail})` : x.role));
   const period = has(a?.period) ? a.period.replace(/^\S*기간\s*[:：]?\s*/, "") : "";
@@ -554,12 +556,38 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
         <div className="rp-body">
           <section>
             <H>종합 판단</H>
-            <div className={`rp-verdict ${TONE[r.verdict.tone]}`}>
+            <div className={`rp-verdict ${ws.grade === "A" ? "v-good" : ws.grade === "B" ? "v-warn" : "v-bad"}`}>
               <strong>수주 가능성 {ws.score}점 · {ws.label}</strong>
-              <p>{r.verdict.level}: {r.verdict.reason}</p>
+              <p>{keyRisks.length ? `핵심 리스크: ${keyRisks.join(", ")}` : "큰 위험 요소가 보이지 않습니다."}</p>
             </div>
             <ul className="rp-score">{ws.reasons.map((x, i) => <li key={i} className={x.startsWith("+") ? "plus" : "minus"}>{x}</li>)}</ul>
           </section>
+
+          {est && (
+            <section>
+              <H>인력 · 원가 · 마진 추정</H>
+              {est.unknown ? (
+                <p className="na">{est.notes[0]}</p>
+              ) : (
+                <>
+                  <div className="rp-kpis">
+                    <div><span>예상 투입</span><b>{est.mm}MM</b><small>월 {est.people}명 × {est.months}개월</small></div>
+                    <div><span>예상 원가</span><b>{est.fmt.total}</b><small>인건비 {est.fmt.labor} · 경비 {est.fmt.direct}</small></div>
+                    <div><span>추정가격</span><b>{est.fmt.supply}</b><small>부가세 제외</small></div>
+                    <div className={est.margin === null ? "" : est.margin < 0 ? "bad" : est.margin < 0.1 ? "warn" : "good"}>
+                      <span>예상 마진</span><b>{est.margin === null ? "-" : `${Math.round(est.margin * 100)}%`}</b>
+                      <small>{est.margin === null ? "가격 미공개" : est.margin < 0 ? "적자" : est.margin < 0.1 ? "낮음" : est.margin < 0.2 ? "보통" : "양호"}</small>
+                    </div>
+                  </div>
+                  {est.notes.map((x, i) => <p key={i} className="rp-note">{x}</p>)}
+                  <p className="rp-assume">
+                    가정: {est.basis}, 1인 월 인건비 {Math.round(COST.monthlyLabor / 10000)}만원, 간접비 {Math.round(COST.overhead * 100)}%, 가용 인력 {COST.teamMax}명.
+                    회사 실제 단가를 알려 주시면 맞춰 조정합니다.
+                  </p>
+                </>
+              )}
+            </section>
+          )}
 
           <section>
             <H>사업 개요</H>
