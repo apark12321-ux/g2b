@@ -230,7 +230,8 @@ export default function Home() {
       )}
 
       <div className="list">
-        {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key} detail={section === "review" || section === "join"} section={section} say={say}
+        {shown.map((b) => (section === "review" || section === "join") ? <ReportCard key={b.key} bid={b} onUpdate={update} focused={focus === b.key} section={section} say={say}
+            an={{ working: working === b.key, error: failed[b.key], retry: (force) => analyze(b.key, force) }} /> : <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key} detail={false} section={section} say={say}
             an={{ working: working === b.key, error: failed[b.key], retry: (force) => analyze(b.key, force) }} />)}
       </div>
 
@@ -488,6 +489,170 @@ function Review({ bid: b, an }) {
   );
 }
 
+/** 검토·분석 / 참여: 분석 리포트 형식 */
+function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
+  const d = dday(b.close_at);
+  const a = b.analysis;
+  const r = a?.review;
+  const noDP = (x) => !/직접\s*생산/.test(typeof x === "string" ? x : `${x.item} ${x.detail || ""}`);
+  const risks = (r?.risks || []).filter(noDP);
+  const checklist = (r?.checklist || []).filter(noDP);
+  const has = (x) => (Array.isArray(x) ? x.length > 0 : !!x && x !== "문서에 없음");
+  const staff = (a?.staff || []).filter((x) => has(x?.role)).map((x) => (has(x.detail) ? `${x.role} (${x.detail})` : x.role));
+  const period = has(a?.period) ? a.period.replace(/^\S*기간\s*[:：]?\s*/, "") : "";
+  const revised = String(b.bid_ord || "").replace(/0/g, "") !== "";
+  const lvClass = (lv) => (lv === "높음" ? "hi" : lv === "주의" ? "mid" : "lo");
+  const no = { n: 0 };
+  const H = ({ children }) => <h3 className="rp-h"><span>{String(++no.n).padStart(2, "0")}</span>{children}</h3>;
+
+  return (
+    <article id={`bid-${b.key}`} className={`report ${focused ? "focused" : ""}`}>
+      <header className="rp-head">
+        <div className="rp-kicker">
+          <span>{section === "join" ? "참여 결정 공고" : "입찰 검토 리포트"}</span>
+          <span className={`rp-dday ${d.tone}`}>{d.big}{d.big !== "마감" ? "" : ""}</span>
+        </div>
+        <a className="rp-title" href={b.url} target="_blank" rel="noreferrer">
+          {a?.video?.priority && <span className="prio">교수설계+영상</span>}
+          {revised && <span className="revised">정정</span>}
+          {b.title}
+        </a>
+        {r && <div className={`rp-stamp ${TONE[r.verdict.tone]}`}>{r.verdict.level}</div>}
+      </header>
+
+      <dl className="rp-info">
+        <div><dt>공고기관</dt><dd>{b.org || "-"}{b.demand_org && b.demand_org !== b.org ? ` / 수요 ${b.demand_org}` : ""}</dd></div>
+        <div><dt>추정가격</dt><dd>{b.price ? `${b.price.toLocaleString("ko-KR")}원` : "미공개"}</dd></div>
+        <div><dt>입찰마감</dt><dd>{when(b.close_at)}</dd></div>
+        <div><dt>참가지역</dt><dd>{b.region || "확인 중"}</dd></div>
+        <div><dt>공고번호</dt><dd>{b.bid_no}-{b.bid_ord}</dd></div>
+        <div><dt>게시일</dt><dd>{at(b.posted_at)}</dd></div>
+      </dl>
+
+      {!r ? (
+        <div className="rp-body">
+          {an.error ? (
+            <div className="an-wait an-err">분석하지 못했습니다: {an.error} <button className="mini" onClick={() => an.retry(true)}>다시 시도</button></div>
+          ) : (
+            <div className="an-wait"><span className={an.working ? "dot on" : "dot"} aria-hidden />{an.working ? "첨부 문서를 읽고 리포트를 작성하는 중입니다" : "분석 대기 중"}</div>
+          )}
+        </div>
+      ) : (
+        <div className="rp-body">
+          <section>
+            <H>종합 판단</H>
+            <div className={`rp-verdict ${TONE[r.verdict.tone]}`}>
+              <strong>{r.verdict.level}</strong>
+              <p>{r.verdict.reason}</p>
+            </div>
+          </section>
+
+          <section>
+            <H>사업 개요</H>
+            {has(a.summary) && !/AI 요약 아님|찾지 못했습니다/.test(a.summary) && <p className="rp-lead">{a.summary}</p>}
+            <div className="rp-two">
+              <div>
+                <h4>수행 업무</h4>
+                {has(a.tasks) ? <ol>{a.tasks.slice(0, 6).map((x, i) => <li key={i}>{x}</li>)}</ol> : <p className="na">문서에서 찾지 못함</p>}
+              </div>
+              <div>
+                <h4>최종 납품물</h4>
+                {has(a.deliverables) ? <ul>{a.deliverables.slice(0, 6).map((x, i) => <li key={i}>{x}</li>)}</ul> : <p className="na">문서에서 찾지 못함</p>}
+                {r.unit && <p className="rp-unit">{r.unit}</p>}
+              </div>
+            </div>
+          </section>
+
+          {risks.length > 0 && (
+            <section>
+              <H>리스크 평가</H>
+              <table className="rp-risk">
+                <thead><tr><th>수준</th><th>항목</th><th>근거</th></tr></thead>
+                <tbody>
+                  {risks.map((x, i) => (
+                    <tr key={i}>
+                      <td><span className={`lv lv-${lvClass(x.level)}`}>{x.level}</span></td>
+                      <td><b>{x.item}</b></td>
+                      <td>{x.detail || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )}
+
+          {checklist.length > 0 && (
+            <section>
+              <H>입찰 전 확인 사항</H>
+              <ul className="chk">{checklist.map((x, i) => <li key={i}>{x}</li>)}</ul>
+            </section>
+          )}
+
+          <section>
+            <H>조건 · 일정</H>
+            <dl className="rp-info rp-cond">
+              {period && <div><dt>수행기간</dt><dd>{period}</dd></div>}
+              {staff.length > 0 && <div><dt>투입인력</dt><dd>{staff.join(", ")}</dd></div>}
+              {has(a.eligibility) && <div><dt>참가자격</dt><dd>{a.eligibility.join(" / ")}</dd></div>}
+              {has(a.evaluation) && <div><dt>평가방식</dt><dd>{a.evaluation}</dd></div>}
+              {has(a.presentation) && <div><dt>제안발표</dt><dd>{a.presentation.join(" / ")}</dd></div>}
+              {has(a.schedule) && <div><dt>주요일정</dt><dd>{a.schedule.join(" / ")}</dd></div>}
+            </dl>
+          </section>
+        </div>
+      )}
+
+      <section className="rp-files">
+        <H>첨부 문서</H>
+        <Files files={b.files || []} detailUrl={b.url} loading={an.working} />
+      </section>
+
+      <footer className="rp-foot">
+        <span className="rp-src">
+          {a?.sources?.length ? `분석 근거: ${a.sources.join(", ")}` : r ? "첨부를 읽지 못해 공고 정보로만 판단" : ""}
+          {r && <button className="mini" onClick={() => an.retry(true)} disabled={an.working}>{an.working ? "다시 분석하는 중" : "다시 분석"}</button>}
+        </span>
+        <Stamps bid={b} onUpdate={onUpdate} an={an} say={say} section={section} />
+      </footer>
+    </article>
+  );
+}
+
+function Stamps({ bid: b, onUpdate, an, say, section }) {
+  return (
+    <div className="stamps" aria-label="검토 상태">
+      {STAMPS.filter(([id]) =>
+        section === "review" ? true : section === "join" ? id !== "review" : id !== "join"
+      ).map(([id, label]) => {
+        const on = b.status === id;
+        return (
+          <button
+            key={id} className={`stamp ${id} ${on ? "on" : ""}`} aria-pressed={on}
+            title={on ? `${label} 해제` : `${label}(으)로 표시`}
+            onClick={() => {
+              if (id === "pass") {
+                const prev = b.status;
+                onUpdate(b.key, { status: "pass" });
+                say("불참으로 삭제했습니다.", false, () => onUpdate(b.key, { status: prev }));
+                return;
+              }
+              // 참여 해제는 검토·분석으로 되돌림
+              onUpdate(b.key, { status: on ? (id === "join" ? "review" : "new") : id });
+              if (!on && id === "join") say("참여로 옮겼습니다.");
+              if (!on && id === "review") {
+                say("검토·분석에 추가하고 리스크 분석을 시작합니다.");
+                an.retry(false);
+              }
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function BidRow({ bid: b, onUpdate, an, focused, detail, say, section }) {
   const d = dday(b.close_at);
   const revised = String(b.bid_ord || "").replace(/0/g, "") !== "";
@@ -520,36 +685,7 @@ function BidRow({ bid: b, onUpdate, an, focused, detail, say, section }) {
         {detail && <Review bid={b} an={an} />}
       </div>
 
-      <div className="stamps" aria-label="검토 상태">
-        {STAMPS.filter(([id]) =>
-          section === "review" ? true : section === "join" ? id !== "review" : id !== "join"
-        ).map(([id, label]) => {
-          const on = b.status === id;
-          return (
-            <button
-              key={id} className={`stamp ${id} ${on ? "on" : ""}`} aria-pressed={on}
-              title={on ? `${label} 해제` : `${label}(으)로 표시`}
-              onClick={() => {
-                if (id === "pass") {
-                  const prev = b.status;
-                  onUpdate(b.key, { status: "pass" });
-                  say("불참으로 삭제했습니다.", false, () => onUpdate(b.key, { status: prev }));
-                  return;
-                }
-                // 참여 해제는 검토·분석으로 되돌림
-                onUpdate(b.key, { status: on ? (id === "join" ? "review" : "new") : id });
-                if (!on && id === "join") say("참여로 옮겼습니다.");
-                if (!on && id === "review") {
-                  say("검토·분석에 추가하고 리스크 분석을 시작합니다.");
-                  an.retry(false);
-                }
-              }}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
+      <Stamps bid={b} onUpdate={onUpdate} an={an} say={say} section={section} />
     </article>
   );
 }
