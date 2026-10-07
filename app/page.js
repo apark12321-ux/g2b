@@ -29,7 +29,6 @@ export default function Home() {
   const [section, setSection] = useState("bids"); // bids: 입찰 공고, review: 검토·분석
   const [rule, setRule] = useState("");
   const [q, setQ] = useState("");
-  const [hideClosed, setHideClosed] = useState(true);
   const [showLow, setShowLow] = useState(false); // 영상 비중 낮은 공고 보기
   const [focus, setFocus] = useState(null);
   useEffect(() => {
@@ -146,13 +145,13 @@ export default function Home() {
         (!rule || b.matched_rules.includes(rule)) &&
         (showLow || focus === b.key || !b.analysis?.video?.low) &&
         (focus === b.key || !soon(b)) &&
-        (!hideClosed || !b.close_at || new Date(b.close_at).getTime() > now) &&
+        (b.status === "join" || !b.close_at || new Date(b.close_at).getTime() > now) && // 마감 지난 공고는 표시 안 함 (참여 제외)
         (!words.length || words.every((w) => nz(`${b.title}${b.org || ""}${b.demand_org || ""}`).includes(w)))
     );
     // 교수설계+영상 공고를 맨 위로
     const p = (b) => (b.analysis?.video?.priority ? 0 : 1);
     return list.map((b, i) => [b, i]).sort((x, y) => p(x[0]) - p(y[0]) || x[1] - y[1]).map((x) => x[0]);
-  }, [data, rule, q, hideClosed, showLow, focus]);
+  }, [data, rule, q, showLow, focus]);
   const lowCount = useMemo(() => (data ? data.bids.filter((b) => b.analysis?.video?.low).length : 0), [data]);
 
   // 검토로 넘긴 공고는 '입찰 공고' 쪽(전체·신규 등)에서 빼고 '검토·분석'에서만 보임
@@ -203,10 +202,7 @@ export default function Home() {
 
       <div className="filters">
         <input className="field search" type="search" placeholder="모인 공고에서 찾기 (공고명·기관)" value={q} onChange={(e) => setQ(e.target.value)} />
-        <label className="check">
-          <input type="checkbox" checked={hideClosed} onChange={(e) => setHideClosed(e.target.checked)} />
-          마감 지난 공고 숨기기
-        </label>
+
       </div>
 
       {loadErr && <div className="empty"><strong>목록을 불러오지 못했습니다</strong>{loadErr}</div>}
