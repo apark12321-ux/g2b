@@ -40,6 +40,7 @@ export default function Home() {
   const [section, setSection] = useState("schedule"); // schedule: 일정표, bids: 입찰 공고, review: 검토·분석, join: 참여
   const [orgPick, setOrgPick] = useState(""); // 검토·분석 하위 분류: 공고기관
   const [trashOpen, setTrashOpen] = useState(false); // 휴지통 (불참 처리한 공고)
+  const [refreshing, setRefreshing] = useState(false); // 기존 공고 분석 일괄 갱신
   const [rule, setRule] = useState("");
   const [q, setQ] = useState("");
   const [showLow, setShowLow] = useState(false); // 영상 비중 낮은 공고 보기
@@ -336,6 +337,21 @@ export default function Home() {
           const n = data.bids.filter((b) => b.status === "pass" && (!b.close_at || new Date(b.close_at) > new Date())).length;
           return n > 0 ? <button className="trash-link" onClick={() => { setTrashOpen(true); window.scrollTo(0, 0); }}>휴지통 {n}</button> : null;
         })()}
+        <button className="trash-link" disabled={refreshing} onClick={async () => {
+          setRefreshing(true);
+          say("기존 공고를 새 방식으로 다시 분석하는 중입니다. 몇 분 걸릴 수 있습니다.");
+          try {
+            let left = 1, total = 0;
+            for (let i = 0; i < 6 && left > 0; i++) {
+              const r = await api("/api/reanalyze", { method: "POST" });
+              total += r.done; left = r.left;
+              await load();
+              if (!r.done) break;
+            }
+            say(left ? `${total}건 갱신, ${left}건 남음 — 10분마다 자동으로 이어서 갱신됩니다.` : `${total}건 갱신 완료. 모두 최신입니다.`);
+          } catch (e) { say(`갱신하지 못했습니다: ${e.message}`, true); }
+          finally { setRefreshing(false); }
+        }}>{refreshing ? "분석 갱신 중…" : "기존 공고 분석 갱신"}</button>
         10분마다 자동으로 수집합니다.
         <button className="foot-link" onClick={collect} disabled={collecting}>{collecting ? "수집 중" : "수동 수집"}</button>
       </footer>
