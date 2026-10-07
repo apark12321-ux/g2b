@@ -157,8 +157,8 @@ export default function Home() {
 
   // 검토로 넘긴 공고는 '입찰 공고' 쪽(전체·신규 등)에서 빼고 '검토·분석'에서만 보임
   const bidsOnly = useMemo(
-    () => base.filter((b) => (b.status !== "review" && b.status !== "join") || focus === b.key),
-    [base, focus]
+    () => base.filter((b) => b.status !== "review" && b.status !== "join"), // 검토·참여로 넘긴 공고는 항상 제외
+    [base]
   );
   const counts = useMemo(() => {
     const c = { all: bidsOnly.length, new: 0, review: 0, join: 0, pass: 0 };
@@ -440,11 +440,7 @@ function BidRow({ bid: b, onUpdate, an, focused, detail, say, section }) {
         </div>
 
         <Files files={b.files || []} detailUrl={b.url} loading={an.working} />
-        {detail ? (
-          <Review bid={b} an={an} />
-        ) : (
-          b.status === "review" && <ReviewBadge bid={b} an={an} />
-        )}
+        {detail && <Review bid={b} an={an} />}
       </div>
 
       <div className="stamps" aria-label="검토 상태">
