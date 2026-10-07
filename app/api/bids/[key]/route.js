@@ -12,6 +12,11 @@ export async function PATCH(req, { params }) {
     patch.status = body.status;
   }
   if (body.memo !== undefined) patch.memo = String(body.memo).slice(0, 2000);
+  // 입찰 전 확인 체크 상태
+  if (Array.isArray(body.checked)) {
+    const { data: cur } = await db().from("bids").select("analysis").eq("key", decodeURIComponent(key)).single();
+    patch.analysis = { ...(cur?.analysis || {}), checked: body.checked.map(String).slice(0, 60) };
+  }
   // 비용 항목 끄기/켜기
   if (Array.isArray(body.costOff)) {
     const { data: cur } = await db().from("bids").select("analysis").eq("key", decodeURIComponent(key)).single();

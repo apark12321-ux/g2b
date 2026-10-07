@@ -140,7 +140,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 8 || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 9 || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -878,12 +878,43 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
             </section>
           )}
 
-          {checklist.length > 0 && (
-            <section>
-              <H>입찰 전 확인 사항</H>
-              <ul className="chk">{checklist.map((x, i) => <li key={i}>{x}</li>)}</ul>
-            </section>
-          )}
+          {(a.precheck || checklist.length > 0) && (() => {
+            const pc = a.precheck || { gate: checklist.map((x, i) => ({ id: `c${i}`, item: x, evidence: [] })), prep: [] };
+            const done = new Set(a.checked || []);
+            const toggle = async (id) => {
+              const next = new Set(done);
+              next.has(id) ? next.delete(id) : next.add(id);
+              try {
+                const res = await api(`/api/bids/${encodeURIComponent(b.key)}`, { method: "PATCH", body: JSON.stringify({ checked: [...next] }) });
+                onLocal(b.key, { analysis: res.analysis });
+              } catch (e) { say(e.message, true); }
+            };
+            const gateDone = pc.gate.filter((g) => done.has(g.id)).length;
+            const Item = ({ x, n }) => (
+              <li className={`${done.has(x.id) ? "ok" : ""} ${x.level === "block" ? "block" : ""}`}>
+                <label>
+                  <input type="checkbox" checked={done.has(x.id)} onChange={() => toggle(x.id)} />
+                  <span className="ci">{n ? <em>{n}</em> : null}<b>{x.item}</b>{x.detail && <small> — {x.detail}</small>}</span>
+                </label>
+                {x.evidence?.length > 0 && <ul className="ev">{x.evidence.map((e, i) => <li key={i}>“{e}”</li>)}</ul>}
+              </li>
+            );
+            return (
+              <section>
+                <H>입찰 전 확인</H>
+                <div className="pc-step gate">
+                  <h4>1단계 · 입찰 가능 여부 <small>하나라도 안 되면 준비할 필요 없음 ({gateDone}/{pc.gate.length} 확인)</small></h4>
+                  <ul className="pc">{pc.gate.map((x) => <Item key={x.id} x={x} />)}</ul>
+                </div>
+                {pc.prep.length > 0 && (
+                  <div className={`pc-step ${gateDone < pc.gate.length ? "locked" : ""}`}>
+                    <h4>2단계 · 경영지원팀 제출 체크리스트 <small>{gateDone < pc.gate.length ? "1단계를 모두 확인한 뒤 진행" : "순서대로 진행"}</small></h4>
+                    <ul className="pc">{pc.prep.map((x, i) => <Item key={x.id} x={x} n={i + 1} />)}</ul>
+                  </div>
+                )}
+              </section>
+            );
+          })()}
 
           <section>
             <H>조건 · 일정</H>

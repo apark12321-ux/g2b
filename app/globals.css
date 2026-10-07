@@ -595,3 +595,19 @@ h1, h2, h3, h4, .rp-title, .title, .sections button { letter-spacing: -0.025em; 
 .rp-pay td:first-child { width: 120px; white-space: nowrap; font-weight: 600; }
 .rp-pay td:last-child { text-align: left !important; }
 .rp-pay small.ev { color: var(--muted); font-size: 11.5px; }
+/* 입찰 전 확인: 2단계 */
+.pc-step { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; margin-top: 8px; }
+.pc-step.gate { border-left: 4px solid var(--seal); }
+.pc-step.locked { opacity: .6; }
+.pc-step h4 { margin: 0 0 6px; font-size: 14px; }
+.pc-step h4 small { font-weight: 400; color: var(--muted); margin-left: 6px; font-size: 12px; }
+ul.pc { list-style: none; margin: 0; padding: 0; }
+ul.pc > li { padding: 6px 0; border-top: 1px dashed var(--line); }
+ul.pc > li:first-child { border-top: 0; }
+ul.pc label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; font-size: 14px; }
+ul.pc input { margin-top: 3px; }
+ul.pc .ci em { font-style: normal; display: inline-block; min-width: 20px; color: var(--seal); font-weight: 700; }
+ul.pc .ci small { color: var(--muted); font-size: 12.5px; }
+ul.pc > li.ok .ci b { color: #2e7d4f; text-decoration: line-through; text-decoration-color: color-mix(in srgb, #2e7d4f 50%, transparent); }
+ul.pc > li.block .ci b { color: var(--seal); }
+ul.pc ul.ev { margin: 3px 0 0 28px; padding: 0; list-style: none; font-size: 12px; color: var(--muted); }
