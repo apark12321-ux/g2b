@@ -270,13 +270,20 @@ export default function Home() {
               참여{joinList.length > 0 && <span className="sec-n join">{joinList.length}</span>}
             </button>
           </div>
-          {run && (
-            <div className={`run ${run.error ? "bad" : ""}`}>
-              {run.error
-                ? `마지막 수집 실패 (${at(run.ran_at)}): ${run.error}`
-                : `마지막 수집 ${at(run.ran_at)}, 공고 ${run.fetched}건 확인, 새 알림 ${run.sent}건${run.failed ? `, 알림 실패 ${run.failed}건` : ""}`}
-            </div>
-          )}
+          {data && (() => {
+            // 자동 수집 상태: 마지막 수집이 25분 넘게 지났으면 멈춘 것으로 봄
+            const mins = run ? Math.floor((Date.now() - new Date(run.ran_at)) / 60000) : null;
+            const stopped = mins === null || mins > 25;
+            return (
+              <div className={`run ${run?.error || stopped ? "bad" : "ok"}`}>
+                <span className={`hb ${stopped ? "off" : run?.error ? "err" : "on"}`} aria-hidden />
+                {mins === null ? "아직 수집 기록이 없습니다 — 자동 수집(cron-job.org) 설정을 확인하세요"
+                  : stopped ? `자동 수집이 ${mins >= 120 ? `${Math.floor(mins / 60)}시간` : `${mins}분`}째 멈춰 있습니다 (마지막 ${at(run.ran_at)}) — cron-job.org 작업을 확인하세요`
+                  : run.error ? `마지막 수집 실패 (${mins}분 전): ${run.error}`
+                  : `자동 수집 정상 · ${mins}분 전 · 공고 ${run.fetched}건 확인, 새 알림 ${run.sent}건${run.failed ? `, 알림 실패 ${run.failed}건` : ""}`}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
