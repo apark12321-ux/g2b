@@ -264,7 +264,8 @@ function Subscribe({ topic, say }) {
       <summary>휴대폰 알림 받기</summary>
       <p className="sub-how">
         휴대폰에 <b>ntfy</b> 앱을 설치하고, 앱에서 <b>+</b>를 눌러 아래 채널 이름을 구독하세요.
-        구독할 때 <b>대기 상태에서 즉시 알림받기</b>만 체크하세요.
+        알림이 늦게 오면 구독 설정에서 <b>대기 상태에서 즉시 알림받기</b>를 체크하세요.
+        (아이폰처럼 이 항목이 없으면 그냥 두셔도 됩니다.)
       </p>
       <div className="topic-box">
         <code>{topic}</code>
