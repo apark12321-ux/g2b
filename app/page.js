@@ -117,7 +117,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 5 || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 6 || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -685,7 +685,10 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                 </tbody>
               </table>
               <p className="rp-period">
-                수행기간 <b>{est.months}개월</b> ({est.monthsSource}) 기준 ·{" "}
+                수행기간 <b>{est.months}개월</b>
+                {est.start && est.monthsSource === "문서" && est.endText
+                  ? ` (계약 예정 ${new Date(est.start).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric" })} ~ ${est.endText}, 시작일 = ${est.startBasis})`
+                  : ` (${est.monthsSource})`} ·{" "}
                 <button className="mini" onClick={async () => {
                   const v = window.prompt("실제 수행기간(개월)을 입력하세요", String(est.months));
                   if (v === null) return;
