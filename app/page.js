@@ -39,6 +39,7 @@ export default function Home() {
   const [tab, setTab] = useState("new"); // "new" 또는 맨 아래 링크로 여는 "pass"
   const [section, setSection] = useState("schedule"); // schedule: 일정표, bids: 입찰 공고, review: 검토·분석, join: 참여
   const [orgPick, setOrgPick] = useState(""); // 검토·분석 하위 분류: 공고기관
+  const [trashOpen, setTrashOpen] = useState(false); // 휴지통 (불참 처리한 공고)
   const [rule, setRule] = useState("");
   const [q, setQ] = useState("");
   const [showLow, setShowLow] = useState(false); // 영상 비중 낮은 공고 보기
@@ -220,6 +221,36 @@ export default function Home() {
   const run = data?.lastRun;
 
   const anOf = (b) => ({ working: working === b.key, error: failed[b.key], started: started[b.key], retry: (force) => analyze(b.key, force) });
+  if (trashOpen && data) {
+    const trash = data.bids
+      .filter((b) => b.status === "pass" && (!b.close_at || new Date(b.close_at) > new Date()))
+      .sort((x, y) => new Date(y.updated_at || 0) - new Date(x.updated_at || 0));
+    const autoOut = (b) => b.region && b.region !== "전국" && !/서울/.test(b.region);
+    return (
+      <>
+        <div className="trash-bar">
+          <button className="mini" onClick={() => setTrashOpen(false)}>← 돌아가기</button>
+          <h2>휴지통</h2>
+          <p>불참 처리한 공고입니다. 되살리면 입찰 공고(신규)로 돌아갑니다. 마감이 지난 공고는 자동으로 지워집니다.</p>
+        </div>
+        {!trash.length ? <div className="empty">휴지통이 비어 있습니다.</div> : (
+          <ul className="trash-list">
+            {trash.map((b) => (
+              <li key={b.key}>
+                <div>
+                  <b>{b.title}</b>
+                  <small>{clientOf(b)} · 마감 {md(b.close_at)}{b.updated_at ? ` · 불참 처리 ${md(b.updated_at)}` : ""}{autoOut(b) ? ` · 참가지역 제한(${b.region})으로 자동 제외` : ""}</small>
+                </div>
+                <button className="btn" onClick={() => { update(b.key, { status: "new" }); say("되살렸습니다. 입찰 공고에서 다시 볼 수 있습니다."); }}>되살리기</button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {toast && <div className={`toast ${toast.bad ? "bad" : ""}`} role="status">{toast.text}</div>}
+      </>
+    );
+  }
+
   return (
     <>
       <div className="top">
@@ -301,6 +332,10 @@ export default function Home() {
 
       <footer className="page-foot">
         <Subscribe say={say} />
+        {data && (() => {
+          const n = data.bids.filter((b) => b.status === "pass" && (!b.close_at || new Date(b.close_at) > new Date())).length;
+          return n > 0 ? <button className="trash-link" onClick={() => { setTrashOpen(true); window.scrollTo(0, 0); }}>휴지통 {n}</button> : null;
+        })()}
         10분마다 자동으로 수집합니다.
         <button className="foot-link" onClick={collect} disabled={collecting}>{collecting ? "수집 중" : "수동 수집"}</button>
       </footer>
@@ -724,6 +759,15 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
   const a = b.analysis;
   const r = a?.review;
   const ws = winScore(b, a, model);
+  const toggleCheck = async (id) => {
+    const next = new Set(a?.checked || []);
+    next.has(id) ? next.delete(id) : next.add(id);
+    onLocal(b.key, { analysis: { ...a, checked: [...next] } }); // 누르자마자 반영
+    try {
+      const res = await api(`/api/bids/${encodeURIComponent(b.key)}`, { method: "PATCH", body: JSON.stringify({ checked: [...next] }) });
+      onLocal(b.key, { analysis: res.analysis });
+    } catch (e) { say(e.message, true); }
+  };
   const risks = r ? reviewRisks(b, a, model) : [];
   const checklist = (r?.checklist || []).filter((x) => !BOILERPLATE.test(x));
   const est = r ? estimateCost(b, a, model) : null;
@@ -821,7 +865,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   </div>
                   <div><span>투입 인력 <em className="tg est">추정</em></span><b>{est ? `${est.heads}명` : "-"}</b><small>{est ? `${est.months}개월 · 평균 ${pct(est.avgRatePlan)}` : ""}</small></div>
                   <div><span>입찰 마감 <em className="tg fact">공고</em></span><b>{md(ms.close)}</b><small>{ms.presentEst ? `발표일 미기재 (${md(ms.present)}경 예상)` : `발표 ${md(ms.present)}`}</small></div>
-                  <div><span>대금 지급 <em className={`tg ${a.payment?.method ? "fact" : "est"}`}>{a.payment?.method ? "문서" : "미기재"}</em></span><b className="sm">{a.payment?.method ? a.payment.method.replace("완료 후 일괄 지급(후불)", "후불 일괄") : "문서에 조건 없음"}</b><small>{cash ? `선투입 약 ${est.won(cash.peak)} (추정)` : ""}</small></div>
+                  <div><span>대금 지급 <em className={`tg ${a.payment?.method ? "fact" : "est"}`}>{a.payment?.method ? "문서" : "미기재"}</em></span><b className="sm">{a.payment?.method || "문서에 지급 조건 없음"}</b><small>{cash ? `선투입 약 ${est.won(cash.peak)} (계산)` : a.payment?.method ? "" : "공고문·계약특수조건 확인 필요"}</small></div>
                 </div>
                 {top.length > 0 && (
                   <div className="sum-box">
@@ -837,10 +881,12 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                 )}
                 {gate.length > 0 && (
                   <div className="sum-box">
-                    <h4>입찰 가능 여부 <small>{gate.filter((g) => done.has(g.id)).length}/{gate.length} 확인</small></h4>
+                    <h4>입찰 가능 여부 <small>{gate.filter((g) => done.has(g.id)).length}/{gate.length} 확인 · 항목을 누르면 확인 표시</small></h4>
                     <ul className="sum-gate">{gate.map((g) => (
                       <li key={g.id} className={done.has(g.id) ? "ok" : g.level === "block" ? "no" : ""}>
-                        {done.has(g.id) ? "✓" : g.level === "block" ? "✕" : "○"} {g.item}
+                        <button type="button" className="pc-hit" aria-pressed={done.has(g.id)} onClick={() => toggleCheck(g.id)}>
+                          <span className="gi">{g.item}</span>
+                        </button>
                         {g.evidence?.[0] && <small className="q">“{g.evidence[0]}”</small>}
                       </li>
                     ))}</ul>
@@ -996,14 +1042,14 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
             const cash = cashNeed(p, est);
             const Row = ({ k, v, ev }) => <tr><td>{k}</td><td>{v}{ev && <><br /><small className="ev">“{ev}”</small></>}</td></tr>;
             return (
-              <details className="rp-fold"><summary>대금 지급 · 운영 조건 <small>{p.method || "지급 조건 미기재(후불 추정)"}</small></summary>
+              <details className="rp-fold"><summary>대금 지급 · 운영 조건 <small>{p.method || "읽은 문서에 지급 조건 없음"}</small></summary>
                 
                 <table className="rp-mm rp-pay">
                   <tbody>
-                    <Row k="지급 방식" v={<b>{p.method || "문서에 지급 조건 없음 → 완료 후 일괄 지급(후불)으로 가정"}</b>} />
-                    <Row k="선금" v={p.advance ? (p.advance.has ? `있음${p.advance.pct ? ` (계약금액의 ${p.advance.pct}% 이내)` : ""}` : "지급 안 함") : "언급 없음 — 계약 시 선금 청구 가능 여부 확인"} ev={p.advance?.text} />
-                    <Row k="기성(중간 지급)" v={p.progress ? "있음" : "언급 없음"} ev={p.progress?.text} />
-                    <Row k="잔금 지급 시기" v={p.final ? (p.final.days ? `검수 후 ${p.final.days}일 이내` : "완료·검수 후") : "언급 없음 (검수 후 약 14일로 가정)"} ev={p.final?.text} />
+                    <Row k="지급 방식" v={<b>{p.method || "읽은 문서에 지급 조건이 없습니다"}</b>} />
+                    <Row k="선금" v={p.advance ? (p.advance.has ? "문서에 선금 조항 있음 (아래 원문)" : "선금 미지급 (아래 원문)") : "문서에서 확인되지 않음"} ev={p.advance?.text} />
+                    <Row k="기성(중간 지급)" v={p.progress ? "문서에 기성 조항 있음 (아래 원문)" : "문서에서 확인되지 않음"} ev={p.progress?.text} />
+                    <Row k="잔금 지급 시기" v={p.final ? (p.final.days ? `검사·검수 후 ${p.final.days}일 이내 (아래 원문)` : "아래 원문 참고") : "문서에서 확인되지 않음"} ev={p.final?.text} />
                     {p.contractBond && <Row k="계약보증금" v={`${p.contractBond.pct ?? "-"}%`} ev={p.contractBond.text} />}
                     {p.warrantyBond && <Row k="하자보수보증금" v={`${p.warrantyBond.pct ?? "-"}%`} ev={p.warrantyBond.text} />}
                     {p.warrantyPeriod && <Row k="하자담보 기간" v={`${p.warrantyPeriod.months}개월`} ev={p.warrantyPeriod.text} />}
@@ -1038,21 +1084,13 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
           {(a.precheck || checklist.length > 0) && (() => {
             const pc = a.precheck || { gate: checklist.map((x, i) => ({ id: `c${i}`, item: x, evidence: [] })), prep: [] };
             const done = new Set(a.checked || []);
-            const toggle = async (id) => {
-              const next = new Set(done);
-              next.has(id) ? next.delete(id) : next.add(id);
-              try {
-                const res = await api(`/api/bids/${encodeURIComponent(b.key)}`, { method: "PATCH", body: JSON.stringify({ checked: [...next] }) });
-                onLocal(b.key, { analysis: res.analysis });
-              } catch (e) { say(e.message, true); }
-            };
+            const toggle = toggleCheck;
             const gateDone = pc.gate.filter((g) => done.has(g.id)).length;
             const Item = ({ x, n }) => (
               <li className={`${done.has(x.id) ? "ok" : ""} ${x.level === "block" ? "block" : ""}`}>
-                <label>
-                  <input type="checkbox" checked={done.has(x.id)} onChange={() => toggle(x.id)} />
+                <button type="button" className="pc-hit" aria-pressed={done.has(x.id)} onClick={() => toggle(x.id)}>
                   <span className="ci">{n ? <em>{n}</em> : null}<b>{x.item}</b>{x.detail && <small> — {x.detail}</small>}</span>
-                </label>
+                </button>
                 {x.evidence?.length > 0 && <ul className="ev">{x.evidence.map((e, i) => <li key={i}>“{e}”</li>)}</ul>}
               </li>
             );
