@@ -611,3 +611,45 @@ ul.pc .ci small { color: var(--muted); font-size: 12.5px; }
 ul.pc > li.ok .ci b { color: #2e7d4f; text-decoration: line-through; text-decoration-color: color-mix(in srgb, #2e7d4f 50%, transparent); }
 ul.pc > li.block .ci b { color: var(--seal); }
 ul.pc ul.ev { margin: 3px 0 0 28px; padding: 0; list-style: none; font-size: 12px; color: var(--muted); }
+/* ───────── 일정표 */
+.schedule { display: grid; gap: 18px; }
+.sc-block { background: var(--sheet); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; }
+.sc-block h3 { margin: 0 0 10px; font-size: 16px; }
+.sc-block h3 small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.clash-txt { color: var(--seal); }
+.sc-empty { color: var(--muted); font-size: 13px; margin: 0; }
+.sc-scroll { overflow-x: auto; }
+.sc-grid { min-width: 880px; }
+.sc-head, .sc-row { display: grid; grid-template-columns: 260px 1fr; align-items: stretch; }
+.sc-days { display: grid; grid-template-columns: repeat(var(--days), 1fr); font-size: 10.5px; color: var(--muted); }
+.sc-days span { text-align: center; padding: 2px 0; border-left: 1px solid var(--line); }
+.sc-days span.we { background: color-mix(in srgb, var(--line) 35%, transparent); }
+.sc-days span.today { color: #fff; background: var(--seal); font-weight: 700; }
+.sc-months { display: grid; grid-template-columns: repeat(8, 1fr); font-size: 12px; color: var(--muted); }
+.sc-months span { text-align: center; border-left: 1px solid var(--line); padding: 3px 0; }
+.sc-row { border-top: 1px solid var(--line); min-height: 44px; }
+.sc-row.clash { background: color-mix(in srgb, var(--seal) 6%, transparent); }
+.sc-row.clash .sc-bar { outline: 2px solid var(--seal); outline-offset: 1px; }
+.sc-label { text-align: left; border: 0; background: none; padding: 6px 8px 6px 0; cursor: pointer; display: grid; grid-template-columns: auto 1fr; gap: 1px 6px; align-content: center; color: var(--ink); }
+.sc-label.static { cursor: default; display: block; }
+.sc-label .sc-t { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-label small { grid-column: 2; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-label.static small { display: block; }
+.sc-label:hover .sc-t { text-decoration: underline; }
+.sc-st { grid-row: span 2; align-self: center; font-size: 10.5px; font-weight: 700; border-radius: 3px; padding: 1px 5px; color: #fff; }
+.sc-st.st-new { background: #8a94a6; } .sc-st.st-review { background: var(--indigo); } .sc-st.st-join { background: #2e7d4f; }
+.sc-track { position: relative; border-left: 1px solid var(--line); }
+.sc-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--seal); opacity: .5; }
+.sc-bar { position: absolute; top: 12px; height: 20px; border-radius: 4px; background: color-mix(in srgb, #8a94a6 35%, transparent); display: flex; justify-content: flex-end; align-items: center; }
+.sc-bar.st-review { background: color-mix(in srgb, var(--indigo) 30%, transparent); }
+.sc-bar.st-join { background: color-mix(in srgb, #2e7d4f 35%, transparent); }
+.sc-bar .sc-due { font-size: 10px; font-weight: 700; background: var(--ink); color: #fff; border-radius: 3px; padding: 1px 4px; margin-right: -2px; white-space: nowrap; }
+.sc-bar.run.st-review { background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--indigo) 30%, transparent) 0 6px, color-mix(in srgb, var(--indigo) 15%, transparent) 6px 12px); }
+.sc-bar.run.st-join { background: #2e7d4f; }
+.sc-clash { position: absolute; top: 2px; transform: translateX(6px); font-size: 10.5px; font-weight: 700; color: #fff; background: var(--seal); border-radius: 3px; padding: 0 5px; white-space: nowrap; }
+.sc-row.load { background: var(--paper); }
+.sc-months.cells span { padding: 6px 2px; font-size: 12px; color: var(--ink); }
+.cell.ok b { color: #2e7d4f; } .cell.tight { background: color-mix(in srgb, #b7791f 15%, transparent); } .cell.over { background: color-mix(in srgb, var(--seal) 18%, transparent); color: var(--seal) !important; font-weight: 700; }
+.sc-note { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+.sc-days span { white-space: nowrap; position: relative; padding-top: 14px; }
+.sc-days span.m1::before { content: attr(data-m); position: absolute; top: 0; left: 2px; font-weight: 700; color: var(--ink); font-size: 10.5px; }

@@ -37,7 +37,7 @@ export default function Home() {
   const [data, setData] = useState(null);
   const [loadErr, setLoadErr] = useState("");
   const [tab, setTab] = useState("new"); // "new" 또는 맨 아래 링크로 여는 "pass"
-  const [section, setSection] = useState("bids"); // bids: 입찰 공고, review: 검토·분석
+  const [section, setSection] = useState("schedule"); // schedule: 일정표, bids: 입찰 공고, review: 검토·분석, join: 참여
   const [orgPick, setOrgPick] = useState(""); // 검토·분석 하위 분류: 공고기관
   const [rule, setRule] = useState("");
   const [q, setQ] = useState("");
@@ -225,6 +225,9 @@ export default function Home() {
       <div className="top">
         <div>
           <div className="sections" role="tablist">
+            <button role="tab" aria-selected={section === "schedule"} className={section === "schedule" ? "on" : ""} onClick={() => setSection("schedule")}>
+              일정표
+            </button>
             <button role="tab" aria-selected={section === "bids"} className={section === "bids" ? "on" : ""} onClick={() => setSection("bids")}>
               입찰 공고
             </button>
@@ -255,15 +258,15 @@ export default function Home() {
         </div>
       )}
 
-      <div className="filters">
+      {section !== "schedule" && <div className="filters">
         <input className="field search" type="search" placeholder="모인 공고에서 찾기 (공고명·기관)" value={q} onChange={(e) => setQ(e.target.value)} />
 
-      </div>
+      </div>}
 
       {loadErr && <div className="empty"><strong>목록을 불러오지 못했습니다</strong>{loadErr}</div>}
       {!data && !loadErr && <div className="empty">불러오는 중</div>}
 
-      {data && !shown.length && (
+      {data && section !== "schedule" && !shown.length && (
         <div className="empty">
           {section === "join" ? (
             <><strong>참여하기로 한 공고가 없습니다</strong>검토·분석에서 <b>참여</b>를 누르면 여기로 옮겨집니다.</>
@@ -277,7 +280,7 @@ export default function Home() {
         </div>
       )}
 
-      {lowCount > 0 && (
+      {section !== "schedule" && lowCount > 0 && (
         <div className="low-toggle">
           영상 비중이 낮은 공고 {lowCount}건을 {showLow ? "함께 보고 있습니다." : "숨겼습니다."}
           <button className="mini" onClick={() => setShowLow(!showLow)}>{showLow ? "다시 숨기기" : "보기"}</button>
@@ -285,7 +288,11 @@ export default function Home() {
       )}
 
       <div className="list">
-        {shown.map((b) => (section === "review" || section === "join") ? <ReportCard key={b.key} bid={b} onUpdate={update} focused={focus === b.key} section={section} say={say}
+        {section === "schedule" && data && (
+          <ScheduleBoard bids={base.filter((b) => b.status !== "pass")} model={data.costModel}
+            onOpen={(b) => (b.status === "review" || b.status === "join" ? openReport(b.key) : (setSection("bids"), setFocus(b.key)))} />
+        )}
+        {section !== "schedule" && shown.map((b) => (section === "review" || section === "join") ? <ReportCard key={b.key} bid={b} onUpdate={update} focused={focus === b.key} section={section} say={say}
             model={data?.costModel} onModel={(m) => setData((d) => ({ ...d, costModel: m }))}
             onLocal={(key, patch) => setData((d) => ({ ...d, bids: d.bids.map((x) => (x.key === key ? { ...x, ...patch } : x)) }))}
             an={anOf(b)} /> : <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key} detail={false} section={section} say={say}
@@ -544,6 +551,148 @@ function Review({ bid: b, an }) {
         <span>{a.sources?.length ? `읽은 파일 ${a.sources.length}개` : "첨부를 읽지 못해 공고 정보로만 판단"}</span>
         <button className="mini" onClick={() => an.retry(true)} disabled={an.working}>{an.working ? "다시 분석하는 중" : "다시 분석"}</button>
       </div>
+    </div>
+  );
+}
+
+/* ───────── 일정표: 제안 마감이 겹치는지, 수행 기간·인력이 겹치는지 한눈에 ───────── */
+const DAYMS = 864e5;
+const kstDay = (d) => { const x = new Date(d); return new Date(x.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" }) + "T00:00:00+09:00"); };
+const md = (d) => new Date(d).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric" }).replace(/\.\s*$/, "");
+const endOf = (a) => {
+  const m = String(a?.period || "").match(/(20\d{2})\s*[.\-년/]\s*(\d{1,2})\s*[.\-월/]\s*(\d{1,2})/);
+  return m ? new Date(`${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}T00:00:00+09:00`) : null;
+};
+const ST = { new: "신규", review: "검토", join: "참여" };
+
+function ScheduleBoard({ bids, model, onOpen }) {
+  const today = kstDay(Date.now());
+  const M = costModel(model);
+  // ── ① 제안 마감 일정 (오늘 기준 6주)
+  const start = new Date(today.getTime() - 2 * DAYMS);
+  const DAYS = 42;
+  const rows = bids
+    .filter((b) => b.close_at && new Date(b.close_at) >= today)
+    .sort((x, y) => new Date(x.close_at) - new Date(y.close_at));
+  // 마감이 3일 안쪽으로 붙어 있으면 '겹침' (동시에 제안서 준비)
+  const clash = new Map();
+  for (let i = 0; i < rows.length; i++) {
+    const near = rows.filter((o) => o !== rows[i] && Math.abs(new Date(o.close_at) - new Date(rows[i].close_at)) <= 3 * DAYMS);
+    if (near.length) clash.set(rows[i].key, near.length + 1);
+  }
+  const col = (d) => Math.max(0, Math.min(DAYS, (kstDay(d) - start) / DAYMS));
+  const days = [...Array(DAYS)].map((_, i) => new Date(start.getTime() + i * DAYMS));
+
+  // ── ② 수행 기간 (검토·참여, 분석된 공고) — 월 단위 8개월
+  const runs = bids
+    .filter((b) => (b.status === "review" || b.status === "join") && b.analysis)
+    .map((b) => {
+      const est = estimateCost(b, b.analysis, model);
+      const s0 = est?.start ? new Date(est.start) : b.close_at ? new Date(new Date(b.close_at).getTime() + 14 * DAYMS) : null;
+      const e0 = endOf(b.analysis) || (s0 && est ? new Date(s0.getTime() + est.months * 30 * DAYMS) : null);
+      return s0 && e0 ? { b, s0, e0, fte: est ? est.mm / est.months : 0 } : null;
+    })
+    .filter(Boolean)
+    .sort((x, y) => x.s0 - y.s0);
+  const mStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const MONTHS = 8;
+  const months = [...Array(MONTHS)].map((_, i) => new Date(mStart.getFullYear(), mStart.getMonth() + i, 1));
+  const mEnd = new Date(mStart.getFullYear(), mStart.getMonth() + MONTHS, 1);
+  const pos = (d) => Math.max(0, Math.min(1, (d - mStart) / (mEnd - mStart))) * 100;
+  // 월별 동시 수행 인력: 참여는 확정, 검토는 '하면' 늘어나는 인력
+  const load = months.map((m0, i) => {
+    const m1 = months[i + 1] || mEnd;
+    const on = runs.filter((r) => r.s0 < m1 && r.e0 > m0);
+    const join = on.filter((r) => r.b.status === "join").reduce((t, r) => t + r.fte, 0);
+    const all = on.reduce((t, r) => t + r.fte, 0);
+    return { join, all, n: on.length };
+  });
+  const overlapRun = (r) => runs.some((o) => o !== r && o.s0 < r.e0 && o.e0 > r.s0);
+  const tone = (v) => (v > M.teamMax ? "over" : v > M.teamMax * 0.7 ? "tight" : "ok");
+
+  const Label = ({ b, extra }) => (
+    <button className="sc-label" onClick={() => onOpen(b)} title={b.title}>
+      <span className={`sc-st st-${b.status}`}>{ST[b.status]}</span>
+      <span className="sc-t">{b.title}</span>
+      <small>{clientOf(b)}{extra}</small>
+    </button>
+  );
+
+  return (
+    <div className="schedule">
+      <section className="sc-block">
+        <h3>제안 마감 일정 <small>앞으로 6주 · 마감이 3일 안쪽으로 붙은 공고는 <b className="clash-txt">겹침</b>으로 표시 (제안서를 동시에 준비해야 함)</small></h3>
+        {!rows.length ? <p className="sc-empty">다가오는 마감이 없습니다.</p> : (
+          <div className="sc-scroll">
+            <div className="sc-grid" style={{ "--days": DAYS }}>
+              <div className="sc-head">
+                <div className="sc-corner" />
+                <div className="sc-days">
+                  {days.map((d, i) => {
+                    const w = d.getDay();
+                    const showM = d.getDate() === 1 || i === 0;
+                    return <span key={i} className={`${+d === +today ? "today" : ""} ${w === 0 || w === 6 ? "we" : ""} ${showM ? "m1" : ""}`} data-m={showM ? `${d.getMonth() + 1}월` : undefined}>{d.getDate()}</span>;
+                  })}
+                </div>
+              </div>
+              {rows.map((b) => {
+                const c = clash.get(b.key);
+                const from = col(b.posted_at || today), to = col(b.close_at);
+                const left = Math.floor((new Date(b.close_at) - Date.now()) / DAYMS);
+                return (
+                  <div key={b.key} className={`sc-row ${c ? "clash" : ""}`}>
+                    <Label b={b} extra={` · 마감 ${md(b.close_at)} (D-${Math.max(0, left)})`} />
+                    <div className="sc-track">
+                      <div className="sc-today" style={{ left: `${(col(today) / DAYS) * 100}%` }} />
+                      <div className={`sc-bar st-${b.status}`} style={{ left: `${(from / DAYS) * 100}%`, width: `${Math.max(0.6, ((to - from + 1) / DAYS) * 100)}%` }}>
+                        <span className="sc-due">마감</span>
+                      </div>
+                      {c && <span className="sc-clash" style={{ left: `${(to / DAYS) * 100}%` }}>겹침 {c}건</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="sc-block">
+        <h3>수행 일정 · 인력 <small>검토·참여 공고의 계약 예정일~종료일 · 기간이 겹치면 <b className="clash-txt">빨간 테두리</b> · 가용 인력 {M.teamMax}명 기준</small></h3>
+        {!runs.length ? <p className="sc-empty">분석이 끝난 검토·참여 공고가 없습니다.</p> : (
+          <div className="sc-scroll">
+            <div className="sc-grid months">
+              <div className="sc-head">
+                <div className="sc-corner" />
+                <div className="sc-months">{months.map((m, i) => <span key={i}>{m.getMonth() + 1}월</span>)}</div>
+              </div>
+              <div className="sc-row load">
+                <div className="sc-label static"><b>동시 투입 인력</b><small>참여 확정 / 검토 포함</small></div>
+                <div className="sc-months cells">
+                  {load.map((l, i) => (
+                    <span key={i} className={`cell ${tone(l.all)}`} title={`${l.n}건 진행`}>
+                      <b>{Math.round(l.join * 10) / 10}</b> / {Math.round(l.all * 10) / 10}명
+                    </span>
+                  ))}
+                </div>
+              </div>
+              {runs.map((r) => {
+                const ov = overlapRun(r);
+                return (
+                  <div key={r.b.key} className={`sc-row ${ov ? "clash" : ""}`}>
+                    <Label b={r.b} extra={` · ${md(r.s0)}~${md(r.e0)} · 월 ${Math.round(r.fte * 10) / 10}명`} />
+                    <div className="sc-track">
+                      <div className="sc-today" style={{ left: `${pos(today)}%` }} />
+                      <div className={`sc-bar run st-${r.b.status}`} style={{ left: `${pos(r.s0)}%`, width: `${Math.max(1, pos(r.e0) - pos(r.s0))}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        <p className="sc-note">숫자는 그 달에 동시에 필요한 전일 기준 인원입니다. 빨간 칸은 가용 인력을 넘는 달 — 그 기간에 겹치는 공고는 한쪽을 포기하거나 인력 충원이 필요합니다.</p>
+      </section>
     </div>
   );
 }
