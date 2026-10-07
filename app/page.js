@@ -254,6 +254,92 @@ export default function Home() {
   );
 }
 
+function b64ToBytes(b64) {
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+}
+
+/** 이 기기(브라우저·설치한 앱)에서 바로 알림 받기 */
+function DevicePush({ say }) {
+  const [state, setState] = useState("checking"); // checking | unsupported | ios | denied | off | on
+  const [endpoint, setEndpoint] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+        return setState(ios && !standalone ? "ios" : "unsupported");
+      }
+      if (Notification.permission === "denied") return setState("denied");
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) { setEndpoint(sub.endpoint); setState("on"); } else setState("off");
+    })().catch(() => setState("unsupported"));
+  }, []);
+
+  const on = async () => {
+    setBusy(true);
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") { setState(perm === "denied" ? "denied" : "off"); return; }
+      const { publicKey } = await api("/api/push/key");
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(publicKey) });
+      await api("/api/push/subscribe", { method: "POST", body: JSON.stringify({ sub: sub.toJSON() }) });
+      setEndpoint(sub.endpoint);
+      setState("on");
+      say("이 기기에서 알림을 받습니다.");
+    } catch (e) {
+      say(`알림을 켜지 못했습니다: ${e.message}`, true);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const off = async () => {
+    setBusy(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) { await api("/api/push/unsubscribe", { method: "POST", body: JSON.stringify({ endpoint: sub.endpoint }) }); await sub.unsubscribe(); }
+      setState("off");
+      say("이 기기의 알림을 껐습니다.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const test = async () => {
+    try {
+      await api("/api/push/test", { method: "POST", body: JSON.stringify({ endpoint }) });
+      say("테스트 알림을 보냈습니다.");
+    } catch (e) {
+      say(e.message, true);
+    }
+  };
+
+  return (
+    <div className="push-box">
+      <b>이 기기에서 바로 받기</b>
+      {state === "checking" && <p>확인 중…</p>}
+      {state === "ios" && <p>아이폰은 Safari에서 <b>공유 → 홈 화면에 추가</b>로 설치한 앱을 열어야 알림을 켤 수 있습니다.</p>}
+      {state === "unsupported" && <p>이 브라우저는 알림을 지원하지 않습니다. 아래 ntfy 앱을 이용해 주세요.</p>}
+      {state === "denied" && <p>알림이 차단되어 있습니다. 브라우저(또는 휴대폰) 설정에서 이 사이트의 알림을 허용해 주세요.</p>}
+      {state === "off" && (
+        <p><button className="btn primary" onClick={on} disabled={busy}>{busy ? "켜는 중" : "알림 받기"}</button></p>
+      )}
+      {state === "on" && (
+        <p>
+          이 기기에서 알림을 받고 있습니다.{" "}
+          <button className="mini" onClick={test}>테스트</button>{" "}
+          <button className="mini" onClick={off} disabled={busy}>끄기</button>
+        </p>
+      )}
+    </div>
+  );
+}
+
 function Subscribe({ topic, say }) {
   const copy = async () => {
     await navigator.clipboard.writeText(topic).catch(() => {});
@@ -262,14 +348,18 @@ function Subscribe({ topic, say }) {
   return (
     <details className="sub-mini">
       <summary>휴대폰 알림 받기</summary>
-      <p className="sub-how">
-        휴대폰에 <b>ntfy</b> 앱을 설치하고, 앱에서 <b>+</b>를 눌러 아래 채널 이름을 구독하세요.
-        알림이 늦게 오면 구독 설정에서 <b>대기 상태에서 즉시 알림받기</b>를 체크하세요.
-        (아이폰처럼 이 항목이 없으면 그냥 두셔도 됩니다.)
-      </p>
-      <div className="topic-box">
-        <code>{topic}</code>
-        <button className="btn" onClick={copy}>복사</button>
+      <DevicePush say={say} />
+      <div className="push-box">
+        <b>ntfy 앱으로 받기</b>
+        <p className="sub-how">
+          휴대폰에 <b>ntfy</b> 앱을 설치하고, 앱에서 <b>+</b>를 눌러 아래 채널 이름을 구독하세요.
+          알림이 늦게 오면 구독 설정에서 <b>대기 상태에서 즉시 알림받기</b>를 체크하세요.
+          (아이폰처럼 이 항목이 없으면 그냥 두셔도 됩니다.)
+        </p>
+        <div className="topic-box">
+          <code>{topic}</code>
+          <button className="btn" onClick={copy}>복사</button>
+        </div>
       </div>
     </details>
   );

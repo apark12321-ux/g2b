@@ -418,3 +418,8 @@ textarea.full { min-height: 64px; resize: vertical; }
 @media (prefers-color-scheme: dark) { .brand-logo { filter: brightness(0) invert(1); opacity: .8; } }
 @media (max-width: 480px) { .brand-logo { height: 16px; } }
 .toast-undo { margin-left: 10px; border: 0; background: none; color: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.push-box { padding: 8px 0; border-top: 1px dashed var(--line); }
+.push-box:first-of-type { border-top: 0; }
+.push-box > b { display: block; font-size: 12.5px; color: var(--ink); margin-bottom: 4px; }
+.push-box p { margin: 0 0 6px; font-size: 12px; line-height: 1.55; }
+.push-box .btn { padding: 6px 12px; font-size: 13px; }

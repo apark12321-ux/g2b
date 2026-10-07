@@ -60,3 +60,14 @@ alter table bids add column if not exists files jsonb not null default '[]';
 -- v13: AI 공고 분석
 alter table bids add column if not exists analysis jsonb;
 alter table bids add column if not exists analyzed_at timestamptz;
+
+-- 웹 푸시 알림
+create table if not exists push_subs (
+  endpoint text primary key,
+  sub jsonb not null,
+  ua text,
+  created_at timestamptz not null default now()
+);
+create table if not exists app_settings (key text primary key, value text not null);
+alter table push_subs enable row level security;
+alter table app_settings enable row level security;
