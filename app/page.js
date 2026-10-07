@@ -882,6 +882,10 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
         <div className="rp-body">
           <section>
             <H>종합 판단</H>
+            <p className="rp-disclaimer">
+              이 리포트는 공고문과 제안요청서를 자동으로 분석해 만든 <b>검토 참고 자료</b>입니다.
+              분량·원가·일정 등 추정값이 포함되어 실제와 다를 수 있으니, 입찰 여부는 원문과 함께 최종 확인한 뒤 결정해 주세요.
+            </p>
             <div className={`rp-verdict ${ws.grade === "A" ? "v-good" : ws.grade === "B" ? "v-warn" : "v-bad"}`}>
               <strong>수주 가능성 {ws.score}점 · {ws.label}</strong>
               <p>{keyRisks.length ? `핵심 리스크: ${keyRisks.join(", ")}` : "큰 위험 요소가 보이지 않습니다."}</p>
