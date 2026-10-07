@@ -53,7 +53,7 @@ export default function Home() {
   const openReport = (key) => {
     const b = data?.bids?.find((x) => x.key === key);
     if (!b) return;
-    setOrgPick("");
+    setOrgPick(clientOf(b).replace(/\s*(산학협력단|산학협력단장|본부|사업단|센터)$/, "").trim());
     setSection(b.status === "join" ? "join" : b.status === "review" ? "review" : "bids");
     setFocus(key);
     setTimeout(() => document.getElementById(`bid-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 250);
@@ -154,6 +154,7 @@ export default function Home() {
     const b = data.bids.find((x) => x.key === focus);
     if (!b) return;
     setSection(b.status === "review" ? "review" : b.status === "join" ? "join" : "bids");
+    setOrgPick(clientOf(b).replace(/\s*(산학협력단|산학협력단장|본부|사업단|센터)$/, "").trim());
     setTimeout(() => document.getElementById(`bid-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
   }, [focus, data?.bids?.length]);
 
@@ -210,8 +211,10 @@ export default function Home() {
   // 공고기관 이름 정리: "OO대학교 산학협력단" → "OO대학교" 처럼 큰 단위로 묶음
   const orgName = (b) => clientOf(b).replace(/\s*(산학협력단|산학협력단장|본부|사업단|센터)$/, "").trim();
   const orgs = [...reviewList.reduce((m, b) => m.set(orgName(b), (m.get(orgName(b)) || 0) + 1), new Map())].sort((x, y) => y[1] - x[1]);
+  // '전체' 없이 기관별로만: 선택이 없거나 사라졌으면 첫 기관
+  const curOrg = orgs.some(([o]) => o === orgPick) ? orgPick : orgs[0]?.[0] || "";
   const shown =
-    section === "review" ? reviewList.filter((b) => !orgPick || orgName(b) === orgPick) :
+    section === "review" ? reviewList.filter((b) => orgName(b) === curOrg) :
     section === "join" ? joinList :
     bidsOnly.filter((b) => b.status === "new");
   const run = data?.lastRun;
@@ -244,11 +247,10 @@ export default function Home() {
 
 
 
-      {section === "review" && orgs.length > 1 && (
+      {section === "review" && orgs.length > 0 && (
         <div className="org-tabs" role="tablist" aria-label="공고기관별">
-          <button className={!orgPick ? "on" : ""} onClick={() => setOrgPick("")}>전체 <span>{reviewList.length}</span></button>
           {orgs.map(([o, n]) => (
-            <button key={o} className={orgPick === o ? "on" : ""} onClick={() => setOrgPick(o)}>{o} <span>{n}</span></button>
+            <button key={o} className={curOrg === o ? "on" : ""} onClick={() => setOrgPick(o)}>{o} <span>{n}</span></button>
           ))}
         </div>
       )}
