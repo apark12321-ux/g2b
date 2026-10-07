@@ -568,7 +568,7 @@ function CostEditor({ model, onSaved, say }) {
   const init = {
     internalPeople: M.internalPeople, internalMonthly: M.internalMonthly, ownFacility: M.ownFacility ? 1 : 0,
     rateHigh: M.rate.고급, rateMid: M.rate.중급, rateLow: M.rate.초급, days: M.days, teamMax: M.teamMax,
-    targetMargin: pc(M.targetMargin), burden: pc(M.burden), overhead: pc(M.overhead), rework: pc(M.rework), contingency: pc(M.contingency),
+    ownerGA: pc(M.ownerGA), ownerProfit: pc(M.ownerProfit), laborShare: pc(M.laborShare), burden: pc(M.burden), overhead: pc(M.overhead), rework: pc(M.rework), contingency: pc(M.contingency),
     fixedMonthly: Math.round(M.fixedMonthly / 10000), pmPerMonth: M.pmPerMonth, proposalMM: M.proposalMM,
   };
   for (const k of Object.keys(UNIT)) { init[`mm_${k}`] = M.units[k].mm; init[`direct_${k}`] = Math.round(M.units[k].direct / 10000); }
@@ -576,7 +576,7 @@ function CostEditor({ model, onSaved, say }) {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const save = async () => {
     const body = {
-      ...f, targetMargin: Number(f.targetMargin) / 100, burden: Number(f.burden) / 100, overhead: Number(f.overhead) / 100, rework: Number(f.rework) / 100,
+      ...f, ownerGA: Number(f.ownerGA) / 100, ownerProfit: Number(f.ownerProfit) / 100, laborShare: Number(f.laborShare) / 100, burden: Number(f.burden) / 100, overhead: Number(f.overhead) / 100, rework: Number(f.rework) / 100,
       contingency: Number(f.contingency) / 100, fixedMonthly: Number(f.fixedMonthly) * 10000,
     };
     for (const k of Object.keys(UNIT)) body[`direct_${k}`] = Number(f[`direct_${k}`]) * 10000;
@@ -589,7 +589,7 @@ function CostEditor({ model, onSaved, say }) {
   );
   return (
     <div className="cost-edit">
-      <p>직접원가 = ① 직접인건비(적정 최대 노임) + ② 법정부담금 + ③ 직접경비. 제경비·예비비는 원가에 넣지 않고 마진 안의 몫으로 표시합니다. 고치면 모든 공고에 바로 다시 계산됩니다.</p>
+      <p>발주처 예산 = 순원가(노무비 + 경비) × (1 + 일반관리비) × (1 + 이윤)로 역산하고, 그 노무비만큼 인력을 배치합니다. 산출내역서가 있으면 그 금액을 그대로 씁니다. 고치면 모든 공고에 바로 다시 계산됩니다.</p>
       <div className="ce-grid">
         {F("rateHigh", "고급 1일 노임 (PM·교수설계)", "원")}
         {F("rateMid", "중급 1일 노임 (촬영·편집·디자인)", "원")}
@@ -599,7 +599,9 @@ function CostEditor({ model, onSaved, say }) {
         {F("internalMonthly", "내부 제작 인력 월 인건비 (0=노임단가)", "원")}
         {F("days", "월 근무일수", "일")}
         {F("teamMax", "동시 가용 인력", "명")}
-        {F("targetMargin", "목표 마진", "%")}
+        {F("ownerGA", "발주처 일반관리비율", "%")}
+        {F("ownerProfit", "발주처 이윤율", "%")}
+        {F("laborShare", "발주처 순원가 중 노무비 비중", "%")}
         {F("burden", "법정부담금", "%")}
         {F("overhead", "제경비", "%")}
         {F("rework", "수정·검수 대응", "%")}
@@ -716,23 +718,37 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
 
           {est && (
             <section>
-              <H>예산 기준 인력 계획 · 원가</H>
+              <H>발주처 원가 구조 · 수행 계획</H>
               {est.confidence === "낮음" && (
                 <p className="rp-warn">분량을 문서에서 확인하지 못해 가정으로 계산했습니다. 마진·점수가 실제와 크게 다를 수 있으니 제안요청서의 분량(강좌·주차·차시·편수)을 확인하세요.</p>
               )}
-              <p className="rp-plan-note">역마진 없이 <b>목표 마진 {Math.round(est.model.targetMargin * 100)}%</b>를 남긴다는 전제로, 예산 안에서 쓸 수 있는 인력을 배치하고 산출량을 소화할 수 있는지 봅니다.</p>
+              {est.owner && (
+                <>
+                  <p className="rp-plan-note">발주처가 이미 계산해 둔 예산을 풀어서, <b>그 노무비만큼 인력을 배치</b>하는 것을 기준으로 봅니다. ({est.owner.source})</p>
+                  <table className="rp-mm rp-owner">
+                    <thead><tr><th>발주처 원가</th><th>내용</th><th>금액</th></tr></thead>
+                    <tbody>
+                      <tr><td>노무비</td><td>발주처 기준 투입 약 <b>{Math.round(est.owner.mm * 10) / 10}M/M</b> = {est.heads}명 × 평균 {Math.round(est.avgRatePlan * 100)}% × {est.months}개월</td><td>{est.won(est.owner.L0)}</td></tr>
+                      <tr><td>경비</td><td>장비·출연·외주·4대보험 등</td><td>{est.won(est.owner.E0)}</td></tr>
+                      <tr><td>{est.owner.gaLabel}</td><td></td><td>{est.won(est.owner.G0)}</td></tr>
+                      <tr><td>{est.owner.pLabel}</td><td></td><td>{est.won(est.owner.P0)}</td></tr>
+                      <tr className="sum"><td>추정가격</td><td>부가세 제외</td><td>{est.fmt.supply}</td></tr>
+                    </tbody>
+                  </table>
+                </>
+              )}
               <div className="rp-kpis">
-                <div><span>투입 인력 (예산 내)</span><b>{est.heads}명</b><small>평균 투입률 {Math.round(est.avgRatePlan * 100)}% × {est.months}개월</small></div>
-                <div className={est.intensity === null ? "" : est.intensity <= 1 ? "good" : est.intensity <= 1.25 ? "warn" : "bad"}>
-                  <span>작업 강도</span><b>{est.intensity === null ? "-" : `${Math.round(est.intensity * 100)}%`}</b>
-                  <small>{est.intensity === null ? "가격 미공개" : `필요 투입률 ${Math.round(est.avgRateNeed * 100)}% ÷ 예산 내 ${Math.round(est.avgRatePlan * 100)}%`}</small>
+                <div><span>투입 인력 (발주처 산정)</span><b>{est.heads}명</b><small>평균 투입률 {Math.round(est.avgRatePlan * 100)}% × {est.months}개월</small></div>
+                <div className={est.intensity === null ? "" : est.intensity <= 1.3 ? "good" : "warn"}>
+                  <span>회사 기준 필요량</span><b>{est.intensity === null ? "-" : `${Math.round(est.intensity * 100)}%`}</b>
+                  <small>{est.intensity === null ? "가격 미공개" : `발주처 산정 대비 (필요 투입률 ${Math.round(est.avgRateNeed * 100)}%)`}</small>
                 </div>
-                <div><span>직접원가 (계획)</span><b>{est.fmt.total}</b><small>추정가격 {est.fmt.supply}</small></div>
-                <div className="good"><span>마진 (제경비·예비비 포함)</span><b>{est.margin === null ? "-" : `${Math.round(est.margin * 100)}%`}</b>
+                <div><span>우리 수행 원가</span><b>{est.fmt.total}</b><small>인건비 {est.fmt.labor} · 경비 {est.fmt.direct}</small></div>
+                <div className={est.margin === null ? "" : est.margin < 0 ? "bad" : est.margin < 0.1 ? "warn" : "good"}><span>예상 마진</span><b>{est.margin === null ? "-" : `${Math.round(est.margin * 100)}%`}</b>
                   <small>{est.margin === null ? "가격 미공개" : `순이익 ${Math.round((est.net / est.supply) * 100)}%`}</small></div>
               </div>
               <table className="rp-mm">
-                <thead><tr><th>역할</th><th>등급</th><th>인원</th><th>예산 내 투입률</th><th>필요 투입률</th><th>인건비</th></tr></thead>
+                <thead><tr><th>역할 (수행 계획)</th><th>등급</th><th>인원</th><th>투입률</th><th>회사 기준</th><th>인건비</th></tr></thead>
                 <tbody>
                   {est.table.map((x, i) => <tr key={i}><td>{x.role}</td><td>{x.grade}</td><td>{x.heads}명</td><td>{Math.round(x.rate * 100)}%</td><td className={x.needRate > x.rate * 1.25 ? "neg" : ""}>{Math.round(x.needRate * 100)}%</td><td>{est.won(x.cost)}</td></tr>)}
                   {est.inMM > 0 && <tr className="sub"><td>└ 내부 제작 인력</td><td>회사 설정 인건비</td><td></td><td></td><td>{est.inMM}</td><td>{est.won(est.inLabor)}</td></tr>}
@@ -743,7 +759,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   <tr className="sum"><td>직접원가 (①+②+③)</td><td colSpan={4}></td><td>{est.fmt.total}</td></tr>
                   {est.supply && <>
                     <tr><td>추정가격</td><td colSpan={4}>부가세 제외</td><td>{est.fmt.supply}</td></tr>
-                    <tr className="sum"><td>마진</td><td colSpan={4}>추정가격 − 직접원가 ({Math.round(est.margin * 100)}%)</td><td className={est.margin < 0 ? "neg" : ""}>{est.fmt.margin}</td></tr>
+                    <tr className="sum"><td>마진</td><td colSpan={4}>추정가격 − 직접원가 ({Math.round(est.margin * 100)}%) = 발주처 일반관리비·이윤 + 경비 절감분</td><td className={est.margin < 0 ? "neg" : ""}>{est.fmt.margin}</td></tr>
                     <tr className="sub"><td>└ 제경비 몫</td><td colSpan={4}>직접인건비의 {Math.round(est.model.overhead * 100)}%</td><td>{est.fmt.overhead}</td></tr>
                     <tr className="sub"><td>└ 예비비 몫</td><td colSpan={4}>직접원가의 {Math.round(est.model.contingency * 100)}%</td><td>{est.fmt.contingency}</td></tr>
                     <tr className="sub"><td>└ 순이익</td><td colSpan={4}>{Math.round((est.net / est.supply) * 100)}%</td><td className={est.net < 0 ? "neg" : ""}>{est.fmt.net}</td></tr>
