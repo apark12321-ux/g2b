@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/components/api";
 import { at, dday, money, when } from "@/components/format";
 import { winScore, reviewRisks, BOILERPLATE } from "@/lib/score";
-import { estimateCost, COST, LABOR } from "@/lib/cost";
+import { estimateCost, COST, LABOR, costModel } from "@/lib/cost";
 import { titleVideoOnly } from "@/lib/video-score";
 
 const TABS = [
@@ -178,7 +178,7 @@ export default function Home() {
 
   const reviewList = base
     .filter((b) => b.status === "review")
-    .map((b) => [b, winScore(b, b.analysis)?.score ?? -1])
+    .map((b) => [b, winScore(b, b.analysis, data?.costModel)?.score ?? -1])
     .sort((x, y) => y[1] - x[1])
     .map((x) => x[0]);
   const joinList = base.filter((b) => b.status === "join");
@@ -246,6 +246,7 @@ export default function Home() {
 
       <div className="list">
         {shown.map((b) => (section === "review" || section === "join") ? <ReportCard key={b.key} bid={b} onUpdate={update} focused={focus === b.key} section={section} say={say}
+            model={data?.costModel} onModel={(m) => setData((d) => ({ ...d, costModel: m }))}
             an={{ working: working === b.key, error: failed[b.key], retry: (force) => analyze(b.key, force) }} /> : <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key} detail={false} section={section} say={say}
             an={{ working: working === b.key, error: failed[b.key], retry: (force) => analyze(b.key, force) }} />)}
       </div>
@@ -504,15 +505,59 @@ function Review({ bid: b, an }) {
   );
 }
 
+/** 회사 원가 기준 (모든 리포트에 공통 적용) */
+function CostEditor({ model, onSaved, say }) {
+  const M = costModel(model);
+  const [f, setF] = useState({
+    monthlyLabor: Math.round(M.monthlyLabor / 10000), teamMax: M.teamMax, overhead: Math.round(M.overhead * 100),
+    chasiMM: M.units.차시.mm, chasiDirect: Math.round(M.units.차시.direct / 10000),
+    videoMM: M.units.편.mm, videoDirect: Math.round(M.units.편.direct / 10000),
+    shortsMM: M.units.쇼츠.mm, shortsDirect: Math.round(M.units.쇼츠.direct / 10000),
+  });
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const save = async () => {
+    const body = {
+      monthlyLabor: Number(f.monthlyLabor) * 10000, teamMax: Number(f.teamMax), overhead: Number(f.overhead) / 100,
+      chasiMM: Number(f.chasiMM), chasiDirect: Number(f.chasiDirect) * 10000,
+      videoMM: Number(f.videoMM), videoDirect: Number(f.videoDirect) * 10000,
+      shortsMM: Number(f.shortsMM), shortsDirect: Number(f.shortsDirect) * 10000,
+    };
+    try { onSaved(await api("/api/cost-model", { method: "PUT", body: JSON.stringify(body) })); }
+    catch (e) { say(e.message, true); }
+  };
+  // 입력 중 포커스가 풀리지 않도록 컴포넌트가 아닌 함수로 그림
+  const F = (k, label, unit) => (
+    <label key={k}><span>{label}</span><input className="field" inputMode="decimal" value={f[k]} onChange={set(k)} /><em>{unit}</em></label>
+  );
+  return (
+    <div className="cost-edit">
+      <p>실제 후미디어 기준으로 고치면 모든 공고의 원가·마진이 다시 계산됩니다. (MM = 사람 × 개월)</p>
+      <div className="ce-grid">
+        {F("monthlyLabor", "1인 월 인건비", "만원")}
+        {F("teamMax", "동시 가용 인력", "명")}
+        {F("overhead", "간접비", "%")}
+        {F("chasiMM", "이러닝 1차시 투입", "MM")}
+        {F("chasiDirect", "이러닝 1차시 경비", "만원")}
+        {F("videoMM", "영상 1편 투입", "MM")}
+        {F("videoDirect", "영상 1편 경비", "만원")}
+        {F("shortsMM", "숏폼 1편 투입", "MM")}
+        {F("shortsDirect", "숏폼 1편 경비", "만원")}
+      </div>
+      <button className="btn primary" onClick={save}>저장</button>
+    </div>
+  );
+}
+
 /** 검토·분석 / 참여: 분석 리포트 형식 */
-function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
+function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onModel }) {
   const d = dday(b.close_at);
   const a = b.analysis;
   const r = a?.review;
-  const ws = winScore(b, a);
-  const risks = r ? reviewRisks(b, a) : [];
+  const ws = winScore(b, a, model);
+  const risks = r ? reviewRisks(b, a, model) : [];
   const checklist = (r?.checklist || []).filter((x) => !BOILERPLATE.test(x));
-  const est = r ? estimateCost(b, a) : null;
+  const est = r ? estimateCost(b, a, model) : null;
+  const [editCost, setEditCost] = useState(false);
   const keyRisks = risks.filter((x) => x.level !== "참고").slice(0, 3).map((x) => x.item);
   const inf = new Set(a?.inferred || []);
   const short = (x, k) => (String(x).length > k ? String(x).slice(0, k - 1) + "…" : String(x));
@@ -592,18 +637,21 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
                 <>
                   <div className="rp-kpis">
                     <div><span>예상 투입</span><b>{est.mm}MM</b><small>월 {est.people}명 × {est.months}개월</small></div>
-                    <div><span>예상 원가</span><b>{est.fmt.total}</b><small>인건비 {est.fmt.labor} · 경비 {est.fmt.direct}</small></div>
+                    <div><span>예상 원가</span><b>{est.fmt.total}</b><small>범위 {est.fmt.lo} ~ {est.fmt.hi}</small></div>
                     <div><span>추정가격</span><b>{est.fmt.supply}</b><small>부가세 제외</small></div>
                     <div className={est.margin === null ? "" : est.margin < 0 ? "bad" : est.margin < 0.1 ? "warn" : "good"}>
                       <span>예상 마진</span><b>{est.margin === null ? "-" : `${Math.round(est.margin * 100)}%`}</b>
-                      <small>{est.margin === null ? "가격 미공개" : est.margin < 0 ? "적자" : est.margin < 0.1 ? "낮음" : est.margin < 0.2 ? "보통" : "양호"}</small>
+                      <small>{est.margin === null ? "가격 미공개" : `범위 ${Math.round(est.range.marginLo * 100)}% ~ ${Math.round(est.range.marginHi * 100)}%`}</small>
                     </div>
                   </div>
+                  <p className={`rp-conf c-${est.confidence}`}>추정 신뢰도 <b>{est.confidence}</b> — {est.basis}</p>
                   {est.notes.map((x, i) => <p key={i} className="rp-note">{x}</p>)}
                   <p className="rp-assume">
-                    가정: {est.basis}. 인건비는 {LABOR.source} 기준 1인 월 {Math.round(COST.monthlyLabor / 10000)}만원
-                    (중급 {LABOR.중급.toLocaleString("ko-KR")}원·초급 {LABOR.초급.toLocaleString("ko-KR")}원/일 × {LABOR.days}일), 간접비 {Math.round(COST.overhead * 100)}%, 가용 인력 {COST.teamMax}명.
+                    인건비는 {LABOR.source} 기준 1인 월 {Math.round(COST.monthlyLabor / 10000)}만원
+                    (중급 {LABOR.중급.toLocaleString("ko-KR")}원·초급 {LABOR.초급.toLocaleString("ko-KR")}원/일 × {LABOR.days}일){est.model.monthlyLabor !== COST.monthlyLabor ? ` → 회사 설정 ${Math.round(est.model.monthlyLabor / 10000)}만원` : ""}, 간접비 {Math.round(est.model.overhead * 100)}%, 가용 인력 {est.model.teamMax}명{est.model.custom ? " (회사 설정 적용)" : ""}.
+                    {" "}<button className="mini" onClick={() => setEditCost(!editCost)}>{editCost ? "닫기" : "원가 기준 수정"}</button>
                   </p>
+                  {editCost && <CostEditor model={model} onSaved={(m) => { onModel(m); setEditCost(false); say("원가 기준을 저장했습니다. 모든 리포트에 바로 적용됩니다."); }} say={say} />}
                 </>
               )}
             </section>

@@ -25,10 +25,11 @@ function latestOnly(list) {
 export async function GET() {
   try {
     const supa = db();
-    const [bids, runs, settings] = await Promise.all([
+    const [bids, runs, settings, cm] = await Promise.all([
       supa.from("bids").select("*").order("created_at", { ascending: false }).limit(500),
       supa.from("runs").select("*").order("ran_at", { ascending: false }).limit(1),
       getSettings(),
+      supa.from("app_settings").select("value").eq("key", "cost_model").maybeSingle(),
     ]);
     const err = bids.error || runs.error;
     if (err) throw err;
@@ -36,6 +37,7 @@ export async function GET() {
       bids: latestOnly(bids.data.filter((b) => b.status === "review" || b.status === "join" || !excluded(b.title))),
       lastRun: runs.data[0] || null,
       topic: settings.topic,
+      costModel: cm?.data?.value ? JSON.parse(cm.data.value) : {},
     });
   } catch (e) {
     return NextResponse.json({ error: String(e.message || e) }, { status: 500 });
