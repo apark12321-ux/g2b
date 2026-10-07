@@ -239,7 +239,7 @@ export default function Home() {
       </div>
 
       <footer className="page-foot">
-        {data?.topic && <Subscribe topic={data.topic} say={say} />}
+        <Subscribe say={say} />
         10분마다 자동으로 수집합니다.
         <button className="foot-link" onClick={collect} disabled={collecting}>{collecting ? "수집 중" : "수동 수집"}</button>
       </footer>
@@ -260,10 +260,9 @@ function b64ToBytes(b64) {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0));
 }
 
-/** 이 기기(브라우저·설치한 앱)에서 바로 알림 받기 */
+/** 알림 받기 ON/OFF (이 기기) */
 function DevicePush({ say }) {
   const [state, setState] = useState("checking"); // checking | unsupported | ios | denied | off | on
-  const [endpoint, setEndpoint] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -275,92 +274,88 @@ function DevicePush({ say }) {
       }
       if (Notification.permission === "denied") return setState("denied");
       const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) { setEndpoint(sub.endpoint); setState("on"); } else setState("off");
+      setState((await reg.pushManager.getSubscription()) ? "on" : "off");
     })().catch(() => setState("unsupported"));
   }, []);
 
-  const on = async () => {
-    setBusy(true);
-    try {
-      const perm = await Notification.requestPermission();
-      if (perm !== "granted") { setState(perm === "denied" ? "denied" : "off"); return; }
-      const { publicKey } = await api("/api/push/key");
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(publicKey) });
-      await api("/api/push/subscribe", { method: "POST", body: JSON.stringify({ sub: sub.toJSON() }) });
-      setEndpoint(sub.endpoint);
-      setState("on");
-      say("이 기기에서 알림을 받습니다.");
-    } catch (e) {
-      say(`알림을 켜지 못했습니다: ${e.message}`, true);
-    } finally {
-      setBusy(false);
-    }
+  const turnOn = async () => {
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") return setState(perm === "denied" ? "denied" : "off");
+    const { publicKey } = await api("/api/push/key");
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(publicKey) });
+    await api("/api/push/subscribe", { method: "POST", body: JSON.stringify({ sub: sub.toJSON() }) });
+    setState("on");
+    say("알림을 켰습니다.");
   };
-  const off = async () => {
-    setBusy(true);
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) { await api("/api/push/unsubscribe", { method: "POST", body: JSON.stringify({ endpoint: sub.endpoint }) }); await sub.unsubscribe(); }
-      setState("off");
-      say("이 기기의 알림을 껐습니다.");
-    } finally {
-      setBusy(false);
+  const turnOff = async () => {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await api("/api/push/unsubscribe", { method: "POST", body: JSON.stringify({ endpoint: sub.endpoint }) });
+      await sub.unsubscribe();
     }
+    setState("off");
+    say("알림을 껐습니다.");
   };
-  const test = async () => {
-    try {
-      await api("/api/push/test", { method: "POST", body: JSON.stringify({ endpoint }) });
-      say("테스트 알림을 보냈습니다.");
-    } catch (e) {
-      say(e.message, true);
-    }
+  const toggle = async () => {
+    setBusy(true);
+    try { state === "on" ? await turnOff() : await turnOn(); }
+    catch (e) { say(`설정하지 못했습니다: ${e.message}`, true); }
+    finally { setBusy(false); }
   };
 
+  const can = state === "on" || state === "off";
   return (
     <div className="push-box">
-      <b>이 기기에서 바로 받기</b>
-      {state === "checking" && <p>확인 중…</p>}
-      {state === "ios" && <p>아이폰은 Safari에서 <b>공유 → 홈 화면에 추가</b>로 설치한 앱을 열어야 알림을 켤 수 있습니다.</p>}
-      {state === "unsupported" && <p>이 브라우저는 알림을 지원하지 않습니다. 아래 ntfy 앱을 이용해 주세요.</p>}
-      {state === "denied" && <p>알림이 차단되어 있습니다. 브라우저(또는 휴대폰) 설정에서 이 사이트의 알림을 허용해 주세요.</p>}
-      {state === "off" && (
-        <p><button className="btn primary" onClick={on} disabled={busy}>{busy ? "켜는 중" : "알림 받기"}</button></p>
-      )}
-      {state === "on" && (
-        <p>
-          이 기기에서 알림을 받고 있습니다.{" "}
-          <button className="mini" onClick={test}>테스트</button>{" "}
-          <button className="mini" onClick={off} disabled={busy}>끄기</button>
-        </p>
-      )}
+      <div className="push-row">
+        <b>알림 받기</b>
+        <button
+          className={`toggle ${state === "on" ? "is-on" : ""}`} role="switch" aria-checked={state === "on"}
+          onClick={toggle} disabled={!can || busy}
+        >
+          <span className="knob" />
+          <span className="tlabel">{state === "on" ? "ON" : "OFF"}</span>
+        </button>
+      </div>
+      {state === "ios" && <p>아이폰은 아래 방법으로 앱을 설치한 뒤, 앱에서 켤 수 있습니다.</p>}
+      {state === "unsupported" && <p>이 브라우저는 알림을 지원하지 않습니다. Chrome이나 설치한 앱에서 켜 주세요.</p>}
+      {state === "denied" && <p>알림이 차단되어 있습니다. 휴대폰(또는 브라우저) 설정에서 이 사이트의 알림을 허용해 주세요.</p>}
     </div>
   );
 }
 
-function Subscribe({ topic, say }) {
-  const copy = async () => {
-    await navigator.clipboard.writeText(topic).catch(() => {});
-    say("채널 이름을 복사했습니다.");
-  };
+/** 앱 설치 안내 (안드로이드 Chrome은 버튼으로 바로 설치) */
+function InstallGuide() {
+  const [prompt, setPrompt] = useState(null);
+  const [installed, setInstalled] = useState(false);
+  useEffect(() => {
+    setInstalled(window.matchMedia("(display-mode: standalone)").matches || !!navigator.standalone);
+    const h = (e) => { e.preventDefault(); setPrompt(e); };
+    window.addEventListener("beforeinstallprompt", h);
+    window.addEventListener("appinstalled", () => setInstalled(true));
+    return () => window.removeEventListener("beforeinstallprompt", h);
+  }, []);
+  if (installed) return <div className="push-box"><b>앱 설치</b><p>앱으로 실행 중입니다.</p></div>;
+  return (
+    <div className="push-box">
+      <b>앱 설치</b>
+      {prompt && (
+        <p><button className="btn" onClick={async () => { prompt.prompt(); await prompt.userChoice; setPrompt(null); }}>앱으로 설치</button></p>
+      )}
+      <p><b>갤럭시</b> Chrome 오른쪽 위 <b>⋮</b> → <b>앱 설치</b>(또는 홈 화면에 추가)</p>
+      <p><b>아이폰</b> Safari 아래 <b>공유(□↑)</b> → <b>홈 화면에 추가</b></p>
+      <p>설치한 앱을 열고 위의 <b>알림 받기</b>를 ON으로 켜 주세요.</p>
+    </div>
+  );
+}
+
+function Subscribe({ say }) {
   return (
     <details className="sub-mini">
-      <summary>휴대폰 알림 받기</summary>
+      <summary>알림 · 앱 설치</summary>
       <DevicePush say={say} />
-      <div className="push-box">
-        <b>ntfy 앱으로 받기</b>
-        <p className="sub-how">
-          휴대폰에 <b>ntfy</b> 앱을 설치하고, 앱에서 <b>+</b>를 눌러 아래 채널 이름을 구독하세요.
-          알림이 늦게 오면 구독 설정에서 <b>대기 상태에서 즉시 알림받기</b>를 체크하세요.
-          (아이폰처럼 이 항목이 없으면 그냥 두셔도 됩니다.)
-        </p>
-        <div className="topic-box">
-          <code>{topic}</code>
-          <button className="btn" onClick={copy}>복사</button>
-        </div>
-      </div>
+      <InstallGuide />
     </details>
   );
 }

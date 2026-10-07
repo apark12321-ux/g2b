@@ -423,3 +423,12 @@ textarea.full { min-height: 64px; resize: vertical; }
 .push-box > b { display: block; font-size: 12.5px; color: var(--ink); margin-bottom: 4px; }
 .push-box p { margin: 0 0 6px; font-size: 12px; line-height: 1.55; }
 .push-box .btn { padding: 6px 12px; font-size: 13px; }
+.push-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.push-row > b { font-size: 13px; color: var(--ink); }
+.toggle { position: relative; width: 64px; height: 28px; border-radius: 999px; border: 0; background: var(--line); cursor: pointer; padding: 0; }
+.toggle .knob { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: left .15s ease; }
+.toggle .tlabel { position: absolute; top: 50%; transform: translateY(-50%); right: 9px; font-size: 11px; font-weight: 700; color: var(--muted); }
+.toggle.is-on { background: var(--indigo); }
+.toggle.is-on .knob { left: 39px; }
+.toggle.is-on .tlabel { left: 10px; right: auto; color: #fff; }
+.toggle:disabled { opacity: .5; cursor: default; }
