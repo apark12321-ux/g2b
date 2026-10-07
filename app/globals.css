@@ -548,3 +548,4 @@ textarea.full { min-height: 64px; resize: vertical; }
 .rfp.ng { background: color-mix(in srgb, var(--seal) 12%, transparent); color: var(--seal); }
 .file.rfp-file { border-color: var(--ink); background: color-mix(in srgb, var(--ink) 5%, var(--sheet)); }
 .rfp-tag { font-size: 11px; font-weight: 700; color: #fff; background: var(--ink); border-radius: 3px; padding: 1px 5px; margin-right: 4px; }
+.rp-mm td.neg { color: var(--seal); }

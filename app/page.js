@@ -509,12 +509,20 @@ function Review({ bid: b, an }) {
 /** 회사 원가 기준 (모든 리포트에 공통 적용) */
 function CostEditor({ model, onSaved, say }) {
   const M = costModel(model);
-  const init = { rateMid: M.rate.중급, rateLow: M.rate.초급, days: M.days, teamMax: M.teamMax, overhead: Math.round(M.overhead * 100) };
+  const pc = (x) => Math.round(x * 100);
+  const init = {
+    rateMid: M.rate.중급, rateLow: M.rate.초급, days: M.days, teamMax: M.teamMax,
+    burden: pc(M.burden), overhead: pc(M.overhead), rework: pc(M.rework), contingency: pc(M.contingency),
+    fixedMonthly: Math.round(M.fixedMonthly / 10000), pmPerMonth: M.pmPerMonth, proposalMM: M.proposalMM,
+  };
   for (const k of Object.keys(UNIT)) { init[`mm_${k}`] = M.units[k].mm; init[`direct_${k}`] = Math.round(M.units[k].direct / 10000); }
   const [f, setF] = useState(init);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const save = async () => {
-    const body = { ...f, overhead: Number(f.overhead) / 100 };
+    const body = {
+      ...f, burden: Number(f.burden) / 100, overhead: Number(f.overhead) / 100, rework: Number(f.rework) / 100,
+      contingency: Number(f.contingency) / 100, fixedMonthly: Number(f.fixedMonthly) * 10000,
+    };
     for (const k of Object.keys(UNIT)) body[`direct_${k}`] = Number(f[`direct_${k}`]) * 10000;
     try { onSaved(await api("/api/cost-model", { method: "PUT", body: JSON.stringify(body) })); }
     catch (e) { say(e.message, true); }
@@ -525,13 +533,19 @@ function CostEditor({ model, onSaved, say }) {
   );
   return (
     <div className="cost-edit">
-      <p>M/M(사람×월) 기준입니다. 인건비 = M/M × 1일 노임단가 × 월 근무일수. 고치면 모든 공고에 바로 다시 계산됩니다.</p>
+      <p>원가계산서 방식: ① 직접인건비(M/M × 1일 노임 × 근무일수) + ② 법정부담금 + ③ 직접경비 + ④ 제경비 + ⑤ 예비비. 고치면 모든 공고에 바로 다시 계산됩니다.</p>
       <div className="ce-grid">
         {F("rateMid", "중급 기술자 1일 노임", "원")}
         {F("rateLow", "초급 기술자 1일 노임", "원")}
         {F("days", "월 근무일수", "일")}
         {F("teamMax", "동시 가용 인력", "명")}
-        {F("overhead", "간접비", "%")}
+        {F("burden", "법정부담금", "%")}
+        {F("overhead", "제경비", "%")}
+        {F("rework", "수정·검수 대응", "%")}
+        {F("contingency", "예비비", "%")}
+        {F("fixedMonthly", "월 고정경비", "만원")}
+        {F("pmPerMonth", "PM 최소 투입", "M/M/월")}
+        {F("proposalMM", "제안·계약 대응", "M/M")}
       </div>
       <div className="ce-grid">
         {Object.entries(UNIT).flatMap(([k, u]) => [F(`mm_${k}`, `${u.label} 1개`, "M/M"), F(`direct_${k}`, `${k} 1개 경비`, "만원")])}
@@ -645,10 +659,13 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                 <thead><tr><th>역할</th><th>등급</th><th>M/M</th><th>인건비</th></tr></thead>
                 <tbody>
                   {est.table.map((x, i) => <tr key={i}><td>{x.role}</td><td>{x.grade}</td><td>{x.mm}</td><td>{est.won(x.cost)}</td></tr>)}
-                  <tr className="sum"><td>인건비 계</td><td></td><td>{est.mm}</td><td>{est.fmt.labor}</td></tr>
-                  <tr><td>직접경비</td><td colSpan={2}>촬영·장비·출연·외주 등</td><td>{est.fmt.direct}</td></tr>
-                  <tr><td>간접비</td><td colSpan={2}>{Math.round(est.model.overhead * 100)}%</td><td>{est.fmt.overhead}</td></tr>
-                  <tr className="sum"><td>원가 합계</td><td></td><td></td><td>{est.fmt.total}</td></tr>
+                  <tr className="sum"><td>① 직접인건비</td><td></td><td>{est.mm}</td><td>{est.fmt.labor}</td></tr>
+                  <tr><td>② 법정부담금</td><td colSpan={2}>4대보험 사업주분 등, ①의 {Math.round(est.model.burden * 100)}%</td><td>{est.fmt.burden}</td></tr>
+                  <tr><td>③ 직접경비</td><td colSpan={2}>장비·스튜디오·출연·외주 + 월 고정경비 {Math.round(est.model.fixedMonthly / 10000)}만원 × {est.months}개월</td><td>{est.fmt.direct}</td></tr>
+                  <tr><td>④ 제경비</td><td colSpan={2}>사무실·장비·관리 간접비, ①의 {Math.round(est.model.overhead * 100)}%</td><td>{est.fmt.overhead}</td></tr>
+                  <tr><td>⑤ 예비비</td><td colSpan={2}>지연·추가 요구 대비, ①~④의 {Math.round(est.model.contingency * 100)}%</td><td>{est.fmt.contingency}</td></tr>
+                  <tr className="sum"><td>총원가</td><td></td><td></td><td>{est.fmt.total}</td></tr>
+                  {est.supply && <tr className="sum"><td>예상 이익</td><td colSpan={2}>추정가격 {est.fmt.supply} − 총원가</td><td className={est.margin < 0 ? "neg" : ""}>{est.won(est.supply - est.cost.total)}</td></tr>}
                 </tbody>
               </table>
               <p className={`rp-conf c-${est.confidence}`}>추정 신뢰도 <b>{est.confidence}</b> — {est.basis}</p>

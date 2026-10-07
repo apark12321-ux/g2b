@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
-const KEYS = ["rateMid", "rateLow", "days", "teamMax", "overhead", ...["차시", "편", "편집", "쇼츠"].flatMap((k) => [`mm_${k}`, `direct_${k}`])];
+const KEYS = ["rateMid", "rateLow", "days", "teamMax", "burden", "overhead", "rework", "contingency", "fixedMonthly", "pmPerMonth", "proposalMM", ...["차시", "편", "편집", "쇼츠"].flatMap((k) => [`mm_${k}`, `direct_${k}`])];
 
 export async function GET() {
   const { data } = await db().from("app_settings").select("value").eq("key", "cost_model").maybeSingle();
