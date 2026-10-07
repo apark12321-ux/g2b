@@ -6,7 +6,7 @@ import { at, dday, money, when } from "@/components/format";
 const TABS = [
   ["all", "전체"],
   ["new", "신규"],
-  ["review", "검토 중"],
+  ["review", "검토·분석"],
   ["join", "참여"],
   ["pass", "패스"],
 ];
@@ -105,7 +105,9 @@ export default function Home() {
     if (!data || working) return;
     const now = Date.now();
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
-    const needs = (b) => !tried[b.key] && !failed[b.key] && (focus === b.key || !soon(b)) && (!b.analysis || !b.analysis.video || !(b.files || []).length);
+    const needs = (b) =>
+      !tried[b.key] && !failed[b.key] && (b.status === "review" || focus === b.key) &&
+      (!b.analysis || !b.analysis.review || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -215,7 +217,7 @@ export default function Home() {
       )}
 
       <div className="list">
-        {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key}
+        {shown.map((b) => <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key} detail={tab === "review"} say={say}
             an={{ working: working === b.key, error: failed[b.key], retry: (force) => analyze(b.key, force) }} />)}
       </div>
 
@@ -295,75 +297,108 @@ function Files({ files, detailUrl, loading }) {
   );
 }
 
-function Analysis({ bid: b, an }) {
-  const a = b.analysis;
+const TONE = { good: "v-good", warn: "v-warn", bad: "v-bad" };
 
-  if (!a) {
+/** 목록에서 보이는 짧은 표시 */
+function ReviewBadge({ bid: b, an }) {
+  const v = b.analysis?.review?.verdict;
+  if (an.working) return <div className="an-wait"><span className="dot on" aria-hidden />리스크 분석 중</div>;
+  if (!v) return <div className="an-wait">검토·분석 탭에서 분석 결과를 볼 수 있습니다</div>;
+  return (
+    <div className="rv-badge-row">
+      <span className={`rv-badge ${TONE[v.tone]}`}>{v.level}</span>
+      <span className="rv-badge-hint">자세한 내용은 검토·분석 탭</span>
+    </div>
+  );
+}
+
+/** 검토·분석 탭의 상세 분석 */
+function Review({ bid: b, an }) {
+  const a = b.analysis;
+  if (!a || !a.review) {
     if (an.error) {
       return (
         <div className="an-wait an-err">
-          공고를 분석하지 못했습니다: {an.error}{" "}
-          <button className="mini" onClick={() => an.retry(false)}>다시 시도</button>
+          분석하지 못했습니다: {an.error} <button className="mini" onClick={() => an.retry(true)}>다시 시도</button>
         </div>
       );
     }
     return (
       <div className="an-wait">
         <span className={an.working ? "dot on" : "dot"} aria-hidden />
-        {an.working ? "첨부파일을 읽고 공고를 분석하는 중입니다" : "분석 대기 중"}
+        {an.working ? "첨부파일을 읽고 리스크를 분석하는 중입니다" : "분석 대기 중"}
       </div>
     );
   }
-
+  const r = a.review;
   const has = (x) => (Array.isArray(x) ? x.length > 0 : !!x && x !== "문서에 없음");
-  const list = (items) => <ul>{items.filter((x) => has(x)).map((x, i) => <li key={i}>{x}</li>)}</ul>;
-  const staff = (a.staff || []).filter((x) => has(x?.role));
-  const anything = ["tasks", "deliverables", "period", "eligibility", "evaluation", "presentation", "schedule", "cautions"].some((k) => has(a[k])) || staff.length > 0;
-  if (!anything && a.mode === "basic") return null;
-
-  const short = (x, n = 70) => (x.length > n ? x.slice(0, n - 1) + "…" : x);
-  const meta = [
-    has(a.period) && ["기간", a.period.replace(/^\S*기간\s*[:：]?\s*/, "")],
-    staff.length > 0 && ["인력", staff.map((x) => short(has(x.detail) ? `${x.role}(${x.detail})` : x.role, 40)).join(", ")],
-    has(a.eligibility) && ["자격", a.eligibility.slice(0, 2).map((x) => short(x)).join(" / ")],
-    has(a.evaluation) && ["평가", short(a.evaluation, 90)],
-    has(a.schedule) && ["일정", a.schedule.slice(0, 2).join(" / ")],
-  ].filter(Boolean);
+  const list = (items) => <ul>{items.filter(has).map((x, i) => <li key={i}>{x}</li>)}</ul>;
+  const staff = (a.staff || []).filter((x) => has(x?.role)).map((x) => (has(x.detail) ? `${x.role} (${x.detail})` : x.role));
 
   return (
-    <div className="analysis">
-      {has(a.summary) && !/AI 요약 아님|찾지 못했습니다/.test(a.summary) && <p className="an-sum">{a.summary}</p>}
-      <div className="an-main">
+    <div className="review">
+      <div className={`verdict ${TONE[r.verdict.tone]}`}>
+        <strong>{r.verdict.level}</strong>
+        <span>{r.verdict.reason}</span>
+      </div>
+
+      {r.risks.length > 0 && (
+        <section className="rv-sec">
+          <h4>리스크</h4>
+          <ul className="risks">
+            {r.risks.map((x, i) => (
+              <li key={i}>
+                <span className={`lv lv-${x.level === "높음" ? "hi" : x.level === "주의" ? "mid" : "lo"}`}>{x.level}</span>
+                <div>
+                  <b>{x.item}</b>
+                  {has(x.detail) && <p>{x.detail}</p>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {r.checklist?.length > 0 && (
+        <section className="rv-sec">
+          <h4>입찰 전 확인할 것</h4>
+          <ul className="chk">{r.checklist.map((x, i) => <li key={i}>{x}</li>)}</ul>
+        </section>
+      )}
+
+      <section className="rv-sec an-main">
         <div>
           <h4>하는 일</h4>
-          {has(a.tasks) ? list(a.tasks.slice(0, 6)) : <p className="na">문서에서 찾지 못함</p>}
+          {has(a.tasks) ? list(a.tasks.slice(0, 8)) : <p className="na">문서에서 찾지 못함</p>}
         </div>
         <div>
           <h4>최종 납품물</h4>
-          {has(a.deliverables) ? list(a.deliverables.slice(0, 6)) : <p className="na">문서에서 찾지 못함</p>}
+          {has(a.deliverables) ? list(a.deliverables.slice(0, 8)) : <p className="na">문서에서 찾지 못함</p>}
+          {r.unit && <p className="unit">{r.unit}</p>}
         </div>
-      </div>
+      </section>
+
       {has(a.presentation) && (
-        <div className="an-present">
-          <h4>발표 조건</h4>
-          {list(a.presentation.slice(0, 4))}
-        </div>
+        <section className="rv-sec"><h4>발표 조건</h4>{list(a.presentation)}</section>
       )}
-      {meta.length > 0 && (
-        <dl className="an-meta">
-          {meta.map(([k, v]) => (
-            <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
-          ))}
-        </dl>
-      )}
+
+      <dl className="an-meta">
+        {has(a.period) && <div><dt>기간</dt><dd>{a.period.replace(/^\S*기간\s*[:：]?\s*/, "")}</dd></div>}
+        {staff.length > 0 && <div><dt>인력</dt><dd>{staff.join(", ")}</dd></div>}
+        {has(a.eligibility) && <div><dt>자격</dt><dd>{a.eligibility.join(" / ")}</dd></div>}
+        {has(a.evaluation) && <div><dt>평가</dt><dd>{a.evaluation}</dd></div>}
+        {has(a.schedule) && <div><dt>일정</dt><dd>{a.schedule.join(" / ")}</dd></div>}
+      </dl>
+
       <div className="an-foot">
+        {a.sources?.length ? <span>읽은 파일: {a.sources.join(", ")}</span> : <span>첨부를 읽지 못해 공고 정보로만 판단</span>}
         <button className="mini" onClick={() => an.retry(true)} disabled={an.working}>{an.working ? "다시 분석하는 중" : "다시 분석"}</button>
       </div>
     </div>
   );
 }
 
-function BidRow({ bid: b, onUpdate, an, focused }) {
+function BidRow({ bid: b, onUpdate, an, focused, detail, say }) {
   const d = dday(b.close_at);
   const revised = String(b.bid_ord || "").replace(/0/g, "") !== "";
 
@@ -391,7 +426,11 @@ function BidRow({ bid: b, onUpdate, an, focused }) {
         </div>
 
         <Files files={b.files || []} detailUrl={b.url} loading={an.working} />
-        <Analysis bid={b} an={an} />
+        {detail ? (
+          <Review bid={b} an={an} />
+        ) : (
+          b.status === "review" && <ReviewBadge bid={b} an={an} />
+        )}
       </div>
 
       <div className="stamps" aria-label="검토 상태">
@@ -401,7 +440,13 @@ function BidRow({ bid: b, onUpdate, an, focused }) {
             <button
               key={id} className={`stamp ${id} ${on ? "on" : ""}`} aria-pressed={on}
               title={on ? `${label} 해제` : `${label}(으)로 표시`}
-              onClick={() => onUpdate(b.key, { status: on ? "new" : id })}
+              onClick={() => {
+                onUpdate(b.key, { status: on ? "new" : id });
+                if (!on && id === "review") {
+                  say("검토·분석 탭에 추가하고 리스크 분석을 시작합니다.");
+                  an.retry(false);
+                }
+              }}
             >
               {label}
             </button>
