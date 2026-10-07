@@ -10,7 +10,9 @@ export async function GET(req) {
   if (secret && req.nextUrl.searchParams.get("key") !== secret) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 401 });
   }
-  const run = await runCollect();
+  // ?hours=72 : 최근 72시간을 다시 조회해 빠진 공고(정정공고 등)를 알림 없이 채움
+  const h = Number(req.nextUrl.searchParams.get("hours") || 0);
+  const run = await runCollect(h > 0 ? { hours: Math.min(h, 168), quiet: true } : {});
   return NextResponse.json(run, { status: run.error ? 500 : 200 });
 }
 
