@@ -779,23 +779,17 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
           {revised && <span className="revised">정정</span>}
           {b.title}
         </a>
-        {ws && !an.working && (
-          <div className={`rp-stamp g-${ws.grade}`}>
-            <b>{ws.score}</b><small>점</small>
-            <span>{ws.grade} · {ws.label}</span>
-          </div>
-        )}
+
       </header>
 
-      {r && !an.working && <dl className="rp-info">
-        <div><dt>발주기관</dt><dd>{clientOf(b)}{/조달청/.test(b.org || "") && b.demand_org ? <small className="via"> (조달청 대행)</small> : b.demand_org && b.demand_org !== b.org ? <small className="via"> · 수요 {b.demand_org}</small> : null}</dd></div>
-        <div><dt>추정가격</dt><dd>{b.price ? `${b.price.toLocaleString("ko-KR")}원` : "미공개"}</dd></div>
-        <div><dt>입찰마감</dt><dd>{when(b.close_at)}</dd></div>
-        <div><dt>참가지역</dt><dd>{b.region || "확인 중"}</dd></div>
-        <div><dt>공고번호</dt><dd>{b.bid_no}-{b.bid_ord}</dd></div>
-        <div><dt>게시일</dt><dd>{at(b.posted_at)}</dd></div>
-        {a?.presenter && <div className="rp-presenter"><dt>제안발표</dt><dd><b>{a.presenter}</b> <Est k="presenter" /></dd></div>}
-      </dl>}
+      {r && !an.working && (
+        <p className="rp-meta">
+          <span><b>{clientOf(b)}</b>{/조달청/.test(b.org || "") && b.demand_org ? " (조달청 대행)" : ""}</span>
+          <span>{b.price ? `${(b.price / 1e8).toFixed(b.price >= 1e9 ? 0 : 2).replace(/\.?0+$/, "")}억원` : "가격 미공개"}</span>
+          {b.region && b.region !== "전국" && <span>참가지역 {b.region}</span>}
+          <a href={b.url} target="_blank" rel="noreferrer">공고 원문 ↗</a>
+        </p>
+      )}
 
       {(!r || an.working) ? (
         <div className="rp-body">
@@ -807,22 +801,64 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
         </div>
       ) : (
         <div className="rp-body">
+          {(() => {
+            const ms = milestonesOf(b);
+            const cash = est ? cashNeed(a.payment, est) : null;
+            const top = risks.filter((x) => x.level !== "참고").slice(0, 3);
+            const gate = (a.precheck?.gate || []);
+            const done = new Set(a.checked || []);
+            const pct = (x) => `${Math.round(x * 100)}%`;
+            return (
+              <section className="rp-summary">
+                <div className={`sum-verdict g-${ws.grade}`}>
+                  <b>{ws.grade}</b>
+                  <div><strong>{ws.label}</strong><small>수주 가능성 {ws.score}점</small></div>
+                </div>
+                <div className="sum-kpis">
+                  <div className={est?.margin == null ? "" : est.margin < 0 ? "bad" : est.margin < 0.1 ? "warn" : "good"}>
+                    <span>예상 마진</span><b>{est?.margin == null ? "-" : pct(est.margin)}</b>
+                    <small>{est?.net != null && est.supply ? `순이익 ${pct(est.net / est.supply)}` : "가격 미공개"}</small>
+                  </div>
+                  <div><span>투입 인력</span><b>{est ? `${est.heads}명` : "-"}</b><small>{est ? `${est.months}개월 · 평균 ${pct(est.avgRatePlan)}` : ""}</small></div>
+                  <div><span>마감 · 발표</span><b>{md(ms.close)}</b><small>발표 {md(ms.present)}{ms.presentEst ? " 예상" : ""}</small></div>
+                  <div><span>대금</span><b className="sm">{a.payment?.method ? a.payment.method.replace("완료 후 일괄 지급(후불)", "후불 일괄") : "후불(추정)"}</b><small>{cash ? `선투입 ${est.won(cash.peak)}` : ""}</small></div>
+                </div>
+                {top.length > 0 && (
+                  <div className="sum-box">
+                    <h4>핵심 리스크</h4>
+                    <ul>{top.map((x, i) => <li key={i}><span className={`lv lv-${x.level === "높음" ? "hi" : "mid"}`}>{x.level}</span>{x.item}</li>)}</ul>
+                  </div>
+                )}
+                {gate.length > 0 && (
+                  <div className="sum-box">
+                    <h4>입찰 가능 여부 <small>{gate.filter((g) => done.has(g.id)).length}/{gate.length} 확인</small></h4>
+                    <ul className="sum-gate">{gate.map((g) => <li key={g.id} className={done.has(g.id) ? "ok" : g.level === "block" ? "no" : ""}>{done.has(g.id) ? "✓" : g.level === "block" ? "✕" : "○"} {g.item}</li>)}</ul>
+                  </div>
+                )}
+                <p className="rp-disclaimer">자동 분석한 <b>검토 참고 자료</b>입니다. 추정값이 포함되어 있으니 원문과 함께 최종 확인 후 결정하세요.</p>
+              </section>
+            );
+          })()}
+
           <section>
-            <H>종합 판단</H>
-            <p className="rp-disclaimer">
-              이 리포트는 공고문과 제안요청서를 자동으로 분석해 만든 <b>검토 참고 자료</b>입니다.
-              분량·원가·일정 등 추정값이 포함되어 실제와 다를 수 있으니, 입찰 여부는 원문과 함께 최종 확인한 뒤 결정해 주세요.
-            </p>
-            <div className={`rp-verdict ${ws.grade === "A" ? "v-good" : ws.grade === "B" ? "v-warn" : "v-bad"}`}>
-              <strong>수주 가능성 {ws.score}점 · {ws.label}</strong>
-              <p>{keyRisks.length ? `핵심 리스크: ${keyRisks.join(", ")}` : "큰 위험 요소가 보이지 않습니다."}</p>
+            <H>사업 개요</H>
+            {has(a.summary) && !/AI 요약 아님|찾지 못했습니다/.test(a.summary) && <p className="rp-lead">{a.summary}</p>}
+            <div className="rp-two">
+              <div>
+                <h4>수행 업무 <Est k="tasks" /></h4>
+                {has(a.tasks) ? <ol>{a.tasks.slice(0, 4).map((x, i) => <li key={i}>{x}</li>)}</ol> : <p className="na">{why}</p>}
+              </div>
+              <div>
+                <h4>최종 납품물 <Est k="deliverables" /></h4>
+                {has(a.deliverables) ? <ul>{a.deliverables.slice(0, 3).map((x, i) => <li key={i}>{x}</li>)}</ul> : <p className="na">{why}</p>}
+
+              </div>
             </div>
-            <ul className="rp-score">{ws.reasons.map((x, i) => <li key={i} className={x.startsWith("+") ? "plus" : "minus"}>{x}</li>)}</ul>
           </section>
 
           {est && (
-            <section>
-              <H>발주처 원가 구조 · 수행 계획</H>
+            <details className="rp-fold"><summary>원가 · 인력 상세 <small>{est.owner ? "발주처 원가 역산 · " : ""}역할별 투입·비용 항목</small></summary>
+              
               {est.confidence === "낮음" && (
                 <p className="rp-warn">분량을 문서에서 확인하지 못해 가정으로 계산했습니다. 마진·점수가 실제와 크게 다를 수 있으니 제안요청서의 분량(강좌·주차·차시·편수)을 확인하세요.</p>
               )}
@@ -918,7 +954,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                 {" "}<button className="mini" onClick={() => setEditCost(!editCost)}>{editCost ? "닫기" : "원가 기준 수정"}</button>
               </p>
               {editCost && <CostEditor model={model} onSaved={(m) => { onModel(m); setEditCost(false); say("원가 기준을 저장했습니다. 모든 리포트에 바로 적용됩니다."); }} say={say} />}
-            </section>
+            </details>
           )}
 
           {est && (() => {
@@ -926,8 +962,8 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
             const cash = cashNeed(p, est);
             const Row = ({ k, v, ev }) => <tr><td>{k}</td><td>{v}{ev && <><br /><small className="ev">“{ev}”</small></>}</td></tr>;
             return (
-              <section>
-                <H>운영 이슈 · 대금 지급</H>
+              <details className="rp-fold"><summary>대금 지급 · 운영 조건 <small>{p.method || "지급 조건 미기재(후불 추정)"}</small></summary>
+                
                 <table className="rp-mm rp-pay">
                   <tbody>
                     <Row k="지급 방식" v={<b>{p.method || "문서에 지급 조건 없음 → 완료 후 일괄 지급(후불)으로 가정"}</b>} />
@@ -941,29 +977,15 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                     {cash && <tr className="sum"><td>자금 선투입</td><td>대금 받기 전 회사가 먼저 쓰는 돈 약 <b>{est.won(cash.peak)}</b> (월 약 {est.won(cash.monthly)} × {est.months}개월{cash.adv > 0 ? `, 선금 ${est.won(cash.adv)} 반영` : ""}) · 수령까지 약 {Math.round(cash.waitMonths * 10) / 10}개월</td></tr>}
                   </tbody>
                 </table>
-              </section>
+              </details>
             );
           })()}
 
-          <section>
-            <H>사업 개요</H>
-            {has(a.summary) && !/AI 요약 아님|찾지 못했습니다/.test(a.summary) && <p className="rp-lead">{a.summary}</p>}
-            <div className="rp-two">
-              <div>
-                <h4>수행 업무 <Est k="tasks" /></h4>
-                {has(a.tasks) ? <ol>{a.tasks.slice(0, 6).map((x, i) => <li key={i}>{x}</li>)}</ol> : <p className="na">{why}</p>}
-              </div>
-              <div>
-                <h4>최종 납품물 <Est k="deliverables" /></h4>
-                {has(a.deliverables) ? <ul>{a.deliverables.slice(0, 6).map((x, i) => <li key={i}>{x}</li>)}</ul> : <p className="na">{why}</p>}
-                {r.unit && <p className="rp-unit">{r.unit}</p>}
-              </div>
-            </div>
-          </section>
+
 
           {risks.length > 0 && (
-            <section>
-              <H>리스크 평가</H>
+            <details className="rp-fold"><summary>리스크 전체 <small>{risks.length}건</small></summary>
+              
               <table className="rp-risk">
                 <thead><tr><th>수준</th><th>항목</th><th>근거</th></tr></thead>
                 <tbody>
@@ -976,7 +998,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   ))}
                 </tbody>
               </table>
-            </section>
+            </details>
           )}
 
           {(a.precheck || checklist.length > 0) && (() => {
@@ -1001,8 +1023,8 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
               </li>
             );
             return (
-              <section>
-                <H>입찰 전 확인</H>
+              <details className="rp-fold"><summary>입찰 준비 체크리스트 <small>입찰 가능 여부 → 경영지원팀 제출 순서</small></summary>
+                
                 <div className="pc-step gate">
                   <h4>1단계 · 입찰 가능 여부 <small>{gateDone}/{pc.gate.length} 확인</small></h4>
                   <ul className="pc">{pc.gate.map((x) => <Item key={x.id} x={x} />)}</ul>
@@ -1013,24 +1035,24 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                     <ul className="pc">{pc.prep.map((x, i) => <Item key={x.id} x={x} n={i + 1} />)}</ul>
                   </div>
                 )}
-              </section>
+              </details>
             );
           })()}
 
-          <section>
-            <H>조건 · 일정</H>
+          <details className="rp-fold"><summary>조건 · 일정</summary>
+            
             <ul className="rp-brief">
               {period && <li><b>기간</b>{short(period, 50)} <Est k="period" /></li>}
               {a.presenter && <li><b>발표</b>{a.presenter}</li>}
               {has(a.evaluation) && <li><b>평가</b>{short(String(a.evaluation), 60)}</li>}
               {has(a.schedule) && <li><b>일정</b>{a.schedule.slice(0, 3).map((x) => short(x, 40)).join(" · ")}</li>}
             </ul>
-          </section>
+          </details>
         </div>
       )}
 
-      {r && !an.working && <section className="rp-files">
-        <H>첨부 문서</H>
+      {r && !an.working && <details className="rp-fold"><summary>첨부 문서 <small>{(b.files || []).length}개</small></summary>
+        
         <Files files={b.files || []} detailUrl={b.url} loading={an.working} />
         {fs.length > 0 && (
           <ul className="fstat">
@@ -1041,7 +1063,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
             ))}
           </ul>
         )}
-      </section>}
+      </details>}
 
       {r && !an.working && <footer className="rp-foot">
         <span className="rp-src">

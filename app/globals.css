@@ -784,3 +784,53 @@ button, .btn, .mini, .stamp, .file, .org-tabs button { touch-action: manipulatio
   .brand-name { font-size: 16px; }
   .brand-logo { height: 13px; }
 }
+
+/* ═════════ 리포트 간결화: 한눈 요약 + 접는 상세 ═════════ */
+.rp-head { padding-right: 0; }
+.rp-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 10px 0 0; font-size: 13.5px; color: var(--muted); }
+.rp-meta b { color: var(--ink); }
+.rp-meta a { color: var(--indigo); text-decoration: none; }
+.rp-summary { margin-top: 14px; display: grid; gap: 10px; }
+.sum-verdict { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 6px; background: var(--paper); border-left: 5px solid; }
+.sum-verdict > b { font-size: 30px; line-height: 1; font-weight: 800; }
+.sum-verdict strong { display: block; font-size: 17px; }
+.sum-verdict small { color: var(--muted); font-size: 12.5px; }
+.sum-verdict.g-A { border-color: #2e7d4f; } .sum-verdict.g-A > b, .sum-verdict.g-A strong { color: #2e7d4f; }
+.sum-verdict.g-B { border-color: #b7791f; } .sum-verdict.g-B > b, .sum-verdict.g-B strong { color: #b7791f; }
+.sum-verdict.g-C { border-color: var(--seal); } .sum-verdict.g-C > b, .sum-verdict.g-C strong { color: var(--seal); }
+.sum-kpis { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.sum-kpis > div { padding: 9px 12px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 1px; }
+.sum-kpis > div:last-child { border-right: 0; }
+.sum-kpis span { font-size: 11.5px; color: var(--muted); font-weight: 700; }
+.sum-kpis b { font-size: 20px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.sum-kpis b.sm { font-size: 15px; line-height: 1.4; }
+.sum-kpis small { font-size: 11.5px; color: var(--muted); }
+.sum-kpis .good b { color: #2e7d4f; } .sum-kpis .warn b { color: #b7791f; } .sum-kpis .bad b { color: var(--seal); }
+.sum-box { border: 1px solid var(--line); border-radius: 6px; padding: 9px 12px; }
+.sum-box h4 { margin: 0 0 6px; font-size: 13.5px; }
+.sum-box h4 small { font-weight: 400; color: var(--muted); margin-left: 6px; }
+.sum-box ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13.5px; }
+.sum-box li .lv { margin-right: 6px; }
+.sum-gate li { color: var(--ink); }
+.sum-gate li.ok { color: #2e7d4f; }
+.sum-gate li.no { color: var(--seal); font-weight: 700; }
+.rp-summary .rp-disclaimer { margin: 0; font-size: 12px; }
+
+/* 접는 상세 */
+.rp-fold { margin-top: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--sheet); }
+.rp-fold > summary { cursor: pointer; padding: 10px 12px; font-weight: 700; font-size: 14px; list-style: none; display: flex; align-items: baseline; gap: 8px; }
+.rp-fold > summary::-webkit-details-marker { display: none; }
+.rp-fold > summary::before { content: "▸"; color: var(--muted); font-size: 12px; }
+.rp-fold[open] > summary::before { content: "▾"; }
+.rp-fold > summary small { font-weight: 400; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-fold > *:not(summary) { margin-left: 12px; margin-right: 12px; }
+.rp-fold[open] { padding-bottom: 10px; }
+@media print { .rp-fold > *:not(summary) { display: block !important; } .rp-fold > summary::before { content: ""; } }
+
+@media (max-width: 640px) {
+  .sum-kpis { grid-template-columns: 1fr 1fr; }
+  .sum-kpis > div:nth-child(2) { border-right: 0; }
+  .sum-kpis > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+  .sum-kpis b { font-size: 18px; }
+  .rp-fold > *:not(summary) { margin-left: 8px; margin-right: 8px; }
+}
