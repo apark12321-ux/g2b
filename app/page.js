@@ -341,7 +341,9 @@ function Review({ bid: b, an }) {
       </div>
     );
   }
-  const r = a.review;
+  // 직접생산확인은 항상 충족되므로 표시하지 않음 (예전 분석 포함)
+  const noDP = (x) => !/직접\s*생산/.test(typeof x === "string" ? x : `${x.item} ${x.detail || ""}`);
+  const r = { ...a.review, risks: a.review.risks.filter(noDP), checklist: (a.review.checklist || []).filter(noDP) };
   const has = (x) => (Array.isArray(x) ? x.length > 0 : !!x && x !== "문서에 없음");
   const short = (x, k) => (x.length > k ? x.slice(0, k - 1) + "…" : x);
   const key = r.risks.filter((x) => x.level !== "참고"); // 높음·주의만
