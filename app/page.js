@@ -653,6 +653,9 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
           {est && (
             <section>
               <H>M/M 기준 원가 · 마진</H>
+              {est.confidence === "낮음" && (
+                <p className="rp-warn">분량을 문서에서 확인하지 못해 가정으로 계산했습니다. 마진·점수가 실제와 크게 다를 수 있으니 제안요청서의 분량(강좌·주차·차시·편수)을 확인하세요.</p>
+              )}
               <div className="rp-kpis">
                 <div><span>투입 인력</span><b>{est.heads}명</b><small>평균 투입률 {Math.round(est.avgRate * 100)}% × {est.months}개월</small></div>
                 <div><span>예상 원가</span><b>{est.fmt.total}</b><small>범위 {est.fmt.lo} ~ {est.fmt.hi}</small></div>
