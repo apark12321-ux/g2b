@@ -522,3 +522,8 @@ textarea.full { min-height: 64px; resize: vertical; }
 .fstat li { margin: 2px 0; }
 .fstat li span { display: inline-block; width: 16px; font-weight: 700; }
 .fstat li.ok span { color: #2e7d4f; } .fstat li.ng span { color: var(--seal); }
+.est { font-style: normal; font-size: 11px; font-weight: 700; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; margin-left: 4px; vertical-align: 1px; }
+.rp-presenter { grid-column: 1 / -1; }
+.rp-presenter dd b { color: var(--ink); }
+.rp-brief { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.rp-brief li b { display: inline-block; width: 40px; color: var(--muted); font-size: 12.5px; }

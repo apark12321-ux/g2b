@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/components/api";
 import { at, dday, money, when } from "@/components/format";
 import { winScore, reviewRisks, BOILERPLATE } from "@/lib/score";
-import { estimateCost, COST } from "@/lib/cost";
+import { estimateCost, COST, LABOR } from "@/lib/cost";
 import { titleVideoOnly } from "@/lib/video-score";
 
 const TABS = [
@@ -98,7 +98,15 @@ export default function Home() {
       const a = await api("/api/analyze", { method: "POST", body: JSON.stringify({ key, force }) });
       setAnalysis(key, a);
     } catch (e) {
-      setFailed((f) => ({ ...f, [key]: e.message }));
+      // 한 번 실패하면 잠시 뒤 자동으로 다시 시도
+      if (!analyze.retried) analyze.retried = new Set();
+      if (!analyze.retried.has(key)) {
+        analyze.retried.add(key);
+        setTried((t) => { const n = { ...t }; delete n[key]; return n; });
+        await new Promise((r) => setTimeout(r, 4000));
+      } else {
+        setFailed((f) => ({ ...f, [key]: e.message }));
+      }
     } finally {
       setWorking(null);
     }
@@ -109,7 +117,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || !b.analysis.fileStatus || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || !b.analysis.fileStatus || !b.analysis.presenter || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -506,6 +514,9 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
   const checklist = (r?.checklist || []).filter((x) => !BOILERPLATE.test(x));
   const est = r ? estimateCost(b, a) : null;
   const keyRisks = risks.filter((x) => x.level !== "참고").slice(0, 3).map((x) => x.item);
+  const inf = new Set(a?.inferred || []);
+  const short = (x, k) => (String(x).length > k ? String(x).slice(0, k - 1) + "…" : String(x));
+  const Est = ({ k }) => (inf.has(k) ? <em className="est">추정</em> : null);
   const fs = a?.fileStatus || [];
   const readOk = fs.filter((x) => /읽음/.test(x.status)).length;
   const why = !(b.files || []).length ? "첨부파일이 없는 공고"
@@ -550,6 +561,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
         <div><dt>참가지역</dt><dd>{b.region || "확인 중"}</dd></div>
         <div><dt>공고번호</dt><dd>{b.bid_no}-{b.bid_ord}</dd></div>
         <div><dt>게시일</dt><dd>{at(b.posted_at)}</dd></div>
+        {a?.presenter && <div className="rp-presenter"><dt>제안발표</dt><dd><b>{a.presenter}</b> <Est k="presenter" /></dd></div>}
       </dl>
 
       {!r ? (
@@ -589,8 +601,8 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
                   </div>
                   {est.notes.map((x, i) => <p key={i} className="rp-note">{x}</p>)}
                   <p className="rp-assume">
-                    가정: {est.basis}, 1인 월 인건비 {Math.round(COST.monthlyLabor / 10000)}만원, 간접비 {Math.round(COST.overhead * 100)}%, 가용 인력 {COST.teamMax}명.
-                    회사 실제 단가를 알려 주시면 맞춰 조정합니다.
+                    가정: {est.basis}. 인건비는 {LABOR.source} 기준 1인 월 {Math.round(COST.monthlyLabor / 10000)}만원
+                    (중급 {LABOR.중급.toLocaleString("ko-KR")}원·초급 {LABOR.초급.toLocaleString("ko-KR")}원/일 × {LABOR.days}일), 간접비 {Math.round(COST.overhead * 100)}%, 가용 인력 {COST.teamMax}명.
                   </p>
                 </>
               )}
@@ -602,11 +614,11 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
             {has(a.summary) && !/AI 요약 아님|찾지 못했습니다/.test(a.summary) && <p className="rp-lead">{a.summary}</p>}
             <div className="rp-two">
               <div>
-                <h4>수행 업무</h4>
+                <h4>수행 업무 <Est k="tasks" /></h4>
                 {has(a.tasks) ? <ol>{a.tasks.slice(0, 6).map((x, i) => <li key={i}>{x}</li>)}</ol> : <p className="na">{why}</p>}
               </div>
               <div>
-                <h4>최종 납품물</h4>
+                <h4>최종 납품물 <Est k="deliverables" /></h4>
                 {has(a.deliverables) ? <ul>{a.deliverables.slice(0, 6).map((x, i) => <li key={i}>{x}</li>)}</ul> : <p className="na">{why}</p>}
                 {r.unit && <p className="rp-unit">{r.unit}</p>}
               </div>
@@ -640,14 +652,12 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
 
           <section>
             <H>조건 · 일정</H>
-            <dl className="rp-info rp-cond">
-              {period && <div><dt>수행기간</dt><dd>{period}</dd></div>}
-              {staff.length > 0 && <div><dt>투입인력</dt><dd>{staff.join(", ")}</dd></div>}
-              {has(a.eligibility) && <div><dt>참가자격</dt><dd>{a.eligibility.join(" / ")}</dd></div>}
-              {has(a.evaluation) && <div><dt>평가방식</dt><dd>{a.evaluation}</dd></div>}
-              {has(a.presentation) && <div><dt>제안발표</dt><dd>{a.presentation.join(" / ")}</dd></div>}
-              {has(a.schedule) && <div><dt>주요일정</dt><dd>{a.schedule.join(" / ")}</dd></div>}
-            </dl>
+            <ul className="rp-brief">
+              {period && <li><b>기간</b>{short(period, 50)} <Est k="period" /></li>}
+              {a.presenter && <li><b>발표</b>{a.presenter}</li>}
+              {has(a.evaluation) && <li><b>평가</b>{short(String(a.evaluation), 60)}</li>}
+              {has(a.schedule) && <li><b>일정</b>{a.schedule.slice(0, 3).map((x) => short(x, 40)).join(" · ")}</li>}
+            </ul>
           </section>
         </div>
       )}
