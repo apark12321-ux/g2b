@@ -109,7 +109,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || !b.analysis.fileStatus || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -506,6 +506,14 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
   const checklist = (r?.checklist || []).filter((x) => !BOILERPLATE.test(x));
   const est = r ? estimateCost(b, a) : null;
   const keyRisks = risks.filter((x) => x.level !== "참고").slice(0, 3).map((x) => x.item);
+  const fs = a?.fileStatus || [];
+  const readOk = fs.filter((x) => /읽음/.test(x.status)).length;
+  const why = !(b.files || []).length ? "첨부파일이 없는 공고"
+    : !fs.length ? "문서에서 찾지 못함"
+    : readOk === 0 && fs.every((x) => /받기 실패/.test(x.status)) ? "첨부를 내려받지 못함"
+    : readOk === 0 && fs.some((x) => /스캔/.test(x.status)) ? "스캔 이미지 문서라 글자를 읽지 못함"
+    : readOk === 0 ? "읽을 수 있는 문서 형식이 아님"
+    : "문서에 해당 내용이 없거나 양식이 달라 찾지 못함";
   const has = (x) => (Array.isArray(x) ? x.length > 0 : !!x && x !== "문서에 없음");
   const staff = (a?.staff || []).filter((x) => has(x?.role)).map((x) => (has(x.detail) ? `${x.role} (${x.detail})` : x.role));
   const period = has(a?.period) ? a.period.replace(/^\S*기간\s*[:：]?\s*/, "") : "";
@@ -595,11 +603,11 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
             <div className="rp-two">
               <div>
                 <h4>수행 업무</h4>
-                {has(a.tasks) ? <ol>{a.tasks.slice(0, 6).map((x, i) => <li key={i}>{x}</li>)}</ol> : <p className="na">문서에서 찾지 못함</p>}
+                {has(a.tasks) ? <ol>{a.tasks.slice(0, 6).map((x, i) => <li key={i}>{x}</li>)}</ol> : <p className="na">{why}</p>}
               </div>
               <div>
                 <h4>최종 납품물</h4>
-                {has(a.deliverables) ? <ul>{a.deliverables.slice(0, 6).map((x, i) => <li key={i}>{x}</li>)}</ul> : <p className="na">문서에서 찾지 못함</p>}
+                {has(a.deliverables) ? <ul>{a.deliverables.slice(0, 6).map((x, i) => <li key={i}>{x}</li>)}</ul> : <p className="na">{why}</p>}
                 {r.unit && <p className="rp-unit">{r.unit}</p>}
               </div>
             </div>
@@ -612,7 +620,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
                 <thead><tr><th>수준</th><th>항목</th><th>근거</th></tr></thead>
                 <tbody>
                   {risks.map((x, i) => (
-                    <tr key={i}>
+                    <tr key={i} className={x.core ? "core" : ""}>
                       <td><span className={`lv lv-${lvClass(x.level)}`}>{x.level}</span></td>
                       <td><b>{x.item}</b></td>
                       <td>{x.detail || "-"}</td>
@@ -647,6 +655,15 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say }) {
       <section className="rp-files">
         <H>첨부 문서</H>
         <Files files={b.files || []} detailUrl={b.url} loading={an.working} />
+        {fs.length > 0 && (
+          <ul className="fstat">
+            {fs.map((x, i) => (
+              <li key={i} className={/읽음/.test(x.status) ? "ok" : "ng"}>
+                <span>{/읽음/.test(x.status) ? "✓" : "✕"}</span>{x.name} — {x.status}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <footer className="rp-foot">
