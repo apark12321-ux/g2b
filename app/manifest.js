@@ -1,6 +1,6 @@
 export default function manifest() {
   return {
-    name: "나라장터 입찰 알림",
+    name: "나라장터 입찰알림",
     short_name: "입찰 알림",
     description: "키워드에 맞는 나라장터 용역 공고를 모아 봅니다.",
     start_url: "/",

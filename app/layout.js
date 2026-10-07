@@ -3,7 +3,7 @@ import Nav from "@/components/Nav";
 import RegisterSW from "@/components/RegisterSW";
 
 export const metadata = {
-  title: "나라장터 입찰 알림",
+  title: "나라장터 입찰알림",
   description: "키워드에 맞는 나라장터 용역 공고를 모아 보고 담당자에게 알립니다.",
   applicationName: "입찰 알림",
   appleWebApp: { capable: true, title: "입찰 알림", statusBarStyle: "default" },

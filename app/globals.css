@@ -408,3 +408,9 @@ textarea.full { min-height: 64px; resize: vertical; }
 .rv-check { margin: 8px 0 0; font-size: 13px; padding: 8px 10px; background: var(--sheet); border-radius: 6px; border-left: 3px solid var(--ink); }
 .rv-check b { margin-right: 6px; }
 .sec-n.join { background: #2e7d4f; }
+
+/* 상단 제목 */
+.brand-name { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+.brand-seal { width: 34px; height: 34px; font-size: 15px; }
+.brand-co { font-size: 12px; color: var(--muted); white-space: nowrap; }
+@media (max-width: 480px) { .brand-name { font-size: 18px; } .brand-seal { width: 30px; height: 30px; } }
