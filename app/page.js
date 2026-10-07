@@ -25,7 +25,7 @@ const soon = (b) => {
 export default function Home() {
   const [data, setData] = useState(null);
   const [loadErr, setLoadErr] = useState("");
-  const [tab, setTab] = useState("new");
+  const [tab, setTab] = useState("new"); // "new" 또는 맨 아래 링크로 여는 "pass"
   const [section, setSection] = useState("bids"); // bids: 입찰 공고, review: 검토·분석
   const [rule, setRule] = useState("");
   const [q, setQ] = useState("");
@@ -120,7 +120,7 @@ export default function Home() {
     const b = data.bids.find((x) => x.key === focus);
     if (!b) return;
     setSection(b.status === "review" ? "review" : b.status === "join" ? "join" : "bids");
-    setTab("all");
+    setTab(b.status === "pass" ? "pass" : "new");
     if (b.close_at && new Date(b.close_at).getTime() < Date.now()) setHideClosed(false);
     setTimeout(() => document.getElementById(`bid-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
   }, [focus, data?.bids?.length]);
@@ -171,7 +171,7 @@ export default function Home() {
   const shown =
     section === "review" ? reviewList :
     section === "join" ? joinList :
-    tab === "all" ? bidsOnly : bidsOnly.filter((b) => b.status === tab);
+    bidsOnly.filter((b) => b.status === (tab === "pass" ? "pass" : "new"));
   const run = data?.lastRun;
 
   return (
@@ -200,14 +200,14 @@ export default function Home() {
       </div>
 
 
+      {section === "bids" && tab === "pass" && (
+        <div className="low-toggle">
+          패스한 공고를 보고 있습니다.
+          <button className="mini" onClick={() => setTab("new")}>입찰 공고로 돌아가기</button>
+        </div>
+      )}
+
       <div className="filters">
-        {section === "bids" && <div className="tabs" role="tablist">
-          {TABS.map(([id, label]) => (
-            <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>
-              {label}<span className="n">{counts[id]}</span>
-            </button>
-          ))}
-        </div>}
         <input className="field search" type="search" placeholder="모인 공고에서 찾기 (공고명·기관)" value={q} onChange={(e) => setQ(e.target.value)} />
         <label className="check">
           <input type="checkbox" checked={hideClosed} onChange={(e) => setHideClosed(e.target.checked)} />
@@ -246,6 +246,11 @@ export default function Home() {
 
       <footer className="page-foot">
         {data?.topic && <Subscribe topic={data.topic} say={say} />}
+        {section === "bids" && counts.pass > 0 && (
+          <button className="foot-link" onClick={() => setTab(tab === "pass" ? "new" : "pass")}>
+            {tab === "pass" ? "입찰 공고로 돌아가기" : `패스한 공고 ${counts.pass}건`}
+          </button>
+        )}
         10분마다 자동으로 수집합니다.
         <button className="foot-link" onClick={collect} disabled={collecting}>{collecting ? "수집 중" : "수동 수집"}</button>
       </footer>
