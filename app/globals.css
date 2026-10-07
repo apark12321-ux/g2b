@@ -913,3 +913,29 @@ ul.pc > li.ok .ci em { color: var(--pass); }
   .sc-bar { top: 13px; height: 10px; }
   .sc-track { height: 26px; }
 }
+
+/* ═════════ 다크 모드 대비 보정: 밝아지는 배경 위 흰 글씨가 안 보이던 문제 ═════════ */
+@media (prefers-color-scheme: dark) {
+  /* 배경이 --ink(다크 모드에선 밝은 색)인 칩 → 글자는 어둡게 */
+  .rfp-tag, .org-tabs button.on, .org-tabs button.on span, .sc-bar .sc-due, .sc-pin.c, .sc-dates .d-c,
+  .stamp.on, .pc-step .ci em { color: #0f141a; }
+  .org-tabs button.on span { opacity: .7; }
+  .sc-dates .d-c em { color: #9a5b00; }
+  /* 배경이 --indigo(다크 모드에선 연보라) → 어두운 글자 */
+  .btn.primary, .file .ext, .sc-pin.s, .sc-dates .d-s, .rp-print:hover, .toggle.is-on .tlabel { color: #0f141a; }
+  /* 고정 진한 남색 배지는 다크 배경에서 묻히지 않게 */
+  .prio.only { background: #4a5f8f; }
+  .sc-st.st-new { background: #5d6875; }
+  /* 초록·주황 글자는 다크 배경용으로 밝게 */
+  .tg.fact, .fx-group .src, .sum-gate li.ok, .rfp.ok, .rp-kpis .good b, .sum-kpis .good b, .sum-verdict.g-A > b, .sum-verdict.g-A strong { color: #5fbf86; }
+  .tg.est, .rp-kpis .warn b, .sum-kpis .warn b, .sum-verdict.g-B > b, .sum-verdict.g-B strong, .sc-dates .d-p.est, .sc-pin.p.est { color: #e0a84a; }
+  .sum-verdict.g-A { border-color: #5fbf86; } .sum-verdict.g-B { border-color: #e0a84a; }
+  .toggle .knob { background: #e6ebf0; }
+  input, textarea, select { background: var(--sheet); color: var(--ink); }
+}
+
+/* 휴대폰: 섹션 제목 옆 작은 설명은 아래 줄로 */
+@media (max-width: 640px) {
+  .rp-h { flex-wrap: wrap; }
+  .rp-h small, .rp-h .hs { flex-basis: 100%; margin-left: 0 !important; }
+}
