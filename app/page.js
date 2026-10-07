@@ -241,8 +241,9 @@ export default function Home() {
                 <div>
                   <b>{b.title}</b>
                   <small>{clientOf(b)} · 마감 {md(b.close_at)}{b.updated_at ? ` · 불참 처리 ${md(b.updated_at)}` : ""}{autoOut(b) ? ` · 참가지역 제한(${b.region})으로 자동 제외` : ""}</small>
+                  {/^불참 사유:/.test(b.memo || "") && <small className="why">{b.memo}</small>}
                 </div>
-                <button className="btn" onClick={() => { update(b.key, { status: "new" }); say("되살렸습니다. 입찰 공고에서 다시 볼 수 있습니다."); }}>되살리기</button>
+                <button className="btn" onClick={() => { update(b.key, { status: "new", memo: /^불참 사유:/.test(b.memo || "") ? null : b.memo }); say("되살렸습니다. 입찰 공고에서 다시 볼 수 있습니다."); }}>되살리기</button>
               </li>
             ))}
           </ul>
@@ -1179,7 +1180,50 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
   );
 }
 
+/** 불참 사유: 고르기 전에는 불참이 확정되지 않음 */
+const PASS_REASONS = [
+  ["qual", "참가 자격 미충족", "업종 등록·실적·지역·인력 요건"],
+  ["profit", "수익성 부족", "예산 대비 원가·마진이 맞지 않음"],
+  ["capacity", "일정·인력 부족", "다른 사업과 겹치거나 투입 인력이 없음"],
+  ["fit", "주력 분야 아님", "영상 비중이 낮거나 회사 강점과 거리가 멂"],
+  ["terms", "요구 조건 부담", "과업량·기간·발표·대금 조건 등이 과함"],
+];
+function PassDialog({ bid: b, onClose, onConfirm }) {
+  const [pick, setPick] = useState("");
+  const [etc, setEtc] = useState("");
+  useEffect(() => {
+    const k = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [onClose]);
+  const reason = pick === "etc" ? etc.trim() : (PASS_REASONS.find((r) => r[0] === pick) || [])[1];
+  return (
+    <div className="dlg-back" onClick={onClose}>
+      <div className="dlg" role="dialog" aria-modal="true" aria-label="불참 사유" onClick={(e) => e.stopPropagation()}>
+        <h3>불참 사유를 골라 주세요</h3>
+        <p className="dlg-sub">{b.title}</p>
+        <div className="reasons">
+          {PASS_REASONS.map(([id, label, hint]) => (
+            <button key={id} type="button" className={`reason ${pick === id ? "on" : ""}`} onClick={() => setPick(id)}>
+              <b>{label}</b><small>{hint}</small>
+            </button>
+          ))}
+          <button type="button" className={`reason ${pick === "etc" ? "on" : ""}`} onClick={() => setPick("etc")}>
+            <b>기타</b><small>직접 입력</small>
+          </button>
+          {pick === "etc" && <input className="field" autoFocus placeholder="불참 사유" value={etc} onChange={(e) => setEtc(e.target.value)} maxLength={80} />}
+        </div>
+        <div className="dlg-act">
+          <button type="button" className="btn" onClick={onClose}>취소</button>
+          <button type="button" className="btn primary" disabled={!reason} onClick={() => onConfirm(reason)}>불참 확정</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Stamps({ bid: b, onUpdate, an, say, section }) {
+  const [asking, setAsking] = useState(false); // 불참 사유 선택 창
   // 신규 공고: 검토만 (누르면 분석 시작)
   if (section === "bids") {
     return (
@@ -1204,12 +1248,7 @@ function Stamps({ bid: b, onUpdate, an, say, section }) {
             key={id} className={`stamp ${id} ${on ? "on" : ""}`} aria-pressed={on}
             title={on ? `${label} 해제` : `${label}(으)로 표시`}
             onClick={() => {
-              if (id === "pass") {
-                const prev = b.status;
-                onUpdate(b.key, { status: "pass" });
-                say("불참으로 삭제했습니다.", false, () => onUpdate(b.key, { status: prev }));
-                return;
-              }
+              if (id === "pass") { setAsking(true); return; } // 사유를 골라야 확정
               // 참여 해제는 검토·분석으로 되돌림
               onUpdate(b.key, { status: on ? (id === "join" ? "review" : "new") : id });
               if (!on && id === "join") say("참여로 옮겼습니다.");
@@ -1223,6 +1262,14 @@ function Stamps({ bid: b, onUpdate, an, say, section }) {
           </button>
         );
       })}
+      {asking && (
+        <PassDialog bid={b} onClose={() => setAsking(false)} onConfirm={(reason) => {
+          const prev = { status: b.status, memo: b.memo || null };
+          setAsking(false);
+          onUpdate(b.key, { status: "pass", memo: `불참 사유: ${reason}` });
+          say(`불참 처리했습니다 (${reason}).`, false, () => onUpdate(b.key, prev));
+        }} />
+      )}
     </div>
   );
 }

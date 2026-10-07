@@ -11,7 +11,7 @@ export async function PATCH(req, { params }) {
     if (!STATUS.includes(body.status)) return NextResponse.json({ error: "잘못된 상태값" }, { status: 400 });
     patch.status = body.status;
   }
-  if (body.memo !== undefined) patch.memo = String(body.memo).slice(0, 2000);
+  if (body.memo !== undefined) patch.memo = body.memo === null ? null : String(body.memo).slice(0, 2000);
   // 입찰 전 확인 체크 상태
   if (Array.isArray(body.checked)) {
     const { data: cur } = await db().from("bids").select("analysis").eq("key", decodeURIComponent(key)).single();

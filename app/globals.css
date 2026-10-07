@@ -939,3 +939,19 @@ ul.pc > li.ok .ci em { color: var(--pass); }
   .rp-h { flex-wrap: wrap; }
   .rp-h small, .rp-h .hs { flex-basis: 100%; margin-left: 0 !important; }
 }
+/* 불참 사유 선택 창 */
+.dlg-back { position: fixed; inset: 0; background: rgba(10, 14, 20, .45); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.dlg { width: min(460px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: var(--sheet); color: var(--ink); border-radius: 10px; padding: 18px; box-shadow: 0 12px 40px rgba(0,0,0,.3); }
+.dlg h3 { margin: 0; font-size: 17px; }
+.dlg-sub { margin: 4px 0 12px; font-size: 12.5px; color: var(--muted); }
+.reasons { display: grid; gap: 6px; }
+.reason { text-align: left; border: 1px solid var(--line); background: var(--paper); border-radius: 8px; padding: 10px 12px; cursor: pointer; color: var(--ink); display: flex; flex-direction: column; gap: 1px; min-height: 48px; }
+.reason b { font-size: 14.5px; }
+.reason small { font-size: 12px; color: var(--muted); }
+.reason.on { border-color: var(--seal); box-shadow: inset 0 0 0 1px var(--seal); background: color-mix(in srgb, var(--seal) 8%, var(--paper)); }
+.dlg-act { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.dlg-act .btn.primary { background: var(--seal); border-color: var(--seal); }
+.dlg-act .btn.primary:disabled { opacity: .45; cursor: default; }
+.trash-list small.why { display: block; margin-top: 2px; color: var(--seal); font-weight: 600; }
+@media (prefers-color-scheme: dark) { .dlg-act .btn.primary { color: #0f141a; } }
+@media (max-width: 640px) { .dlg-back { align-items: flex-end; padding: 0; } .dlg { border-radius: 14px 14px 0 0; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); } }
