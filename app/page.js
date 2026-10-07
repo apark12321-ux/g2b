@@ -30,6 +30,7 @@ export default function Home() {
   const [loadErr, setLoadErr] = useState("");
   const [tab, setTab] = useState("new"); // "new" 또는 맨 아래 링크로 여는 "pass"
   const [section, setSection] = useState("bids"); // bids: 입찰 공고, review: 검토·분석
+  const [orgPick, setOrgPick] = useState(""); // 검토·분석 하위 분류: 공고기관
   const [rule, setRule] = useState("");
   const [q, setQ] = useState("");
   const [showLow, setShowLow] = useState(false); // 영상 비중 낮은 공고 보기
@@ -200,8 +201,11 @@ export default function Home() {
     .sort((x, y) => y[1] - x[1])
     .map((x) => x[0]);
   const joinList = base.filter((b) => b.status === "join");
+  // 공고기관 이름 정리: "OO대학교 산학협력단" → "OO대학교" 처럼 큰 단위로 묶음
+  const orgName = (b) => String(b.org || "기관 미상").replace(/\s*(산학협력단|산학협력단장|본부|사업단|센터)$/, "").trim();
+  const orgs = [...reviewList.reduce((m, b) => m.set(orgName(b), (m.get(orgName(b)) || 0) + 1), new Map())].sort((x, y) => y[1] - x[1]);
   const shown =
-    section === "review" ? reviewList :
+    section === "review" ? reviewList.filter((b) => !orgPick || orgName(b) === orgPick) :
     section === "join" ? joinList :
     bidsOnly.filter((b) => b.status === "new");
   const run = data?.lastRun;
@@ -253,6 +257,15 @@ export default function Home() {
       </div>
 
 
+
+      {section === "review" && orgs.length > 1 && (
+        <div className="org-tabs" role="tablist" aria-label="공고기관별">
+          <button className={!orgPick ? "on" : ""} onClick={() => setOrgPick("")}>전체 <span>{reviewList.length}</span></button>
+          {orgs.map(([o, n]) => (
+            <button key={o} className={orgPick === o ? "on" : ""} onClick={() => setOrgPick(o)}>{o} <span>{n}</span></button>
+          ))}
+        </div>
+      )}
 
       <div className="filters">
         <input className="field search" type="search" placeholder="모인 공고에서 찾기 (공고명·기관)" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -570,7 +583,7 @@ function CostEditor({ model, onSaved, say }) {
   const init = {
     internalPeople: M.internalPeople, internalMonthly: M.internalMonthly, ownFacility: M.ownFacility ? 1 : 0,
     rateHigh: M.rate.고급, rateMid: M.rate.중급, rateLow: M.rate.초급, days: M.days, teamMax: M.teamMax,
-    burden: pc(M.burden), overhead: pc(M.overhead), rework: pc(M.rework), contingency: pc(M.contingency),
+    targetMargin: pc(M.targetMargin), burden: pc(M.burden), overhead: pc(M.overhead), rework: pc(M.rework), contingency: pc(M.contingency),
     fixedMonthly: Math.round(M.fixedMonthly / 10000), pmPerMonth: M.pmPerMonth, proposalMM: M.proposalMM,
   };
   for (const k of Object.keys(UNIT)) { init[`mm_${k}`] = M.units[k].mm; init[`direct_${k}`] = Math.round(M.units[k].direct / 10000); }
@@ -578,7 +591,7 @@ function CostEditor({ model, onSaved, say }) {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const save = async () => {
     const body = {
-      ...f, burden: Number(f.burden) / 100, overhead: Number(f.overhead) / 100, rework: Number(f.rework) / 100,
+      ...f, targetMargin: Number(f.targetMargin) / 100, burden: Number(f.burden) / 100, overhead: Number(f.overhead) / 100, rework: Number(f.rework) / 100,
       contingency: Number(f.contingency) / 100, fixedMonthly: Number(f.fixedMonthly) * 10000,
     };
     for (const k of Object.keys(UNIT)) body[`direct_${k}`] = Number(f[`direct_${k}`]) * 10000;
@@ -601,6 +614,7 @@ function CostEditor({ model, onSaved, say }) {
         {F("internalMonthly", "내부 제작 인력 월 인건비 (0=노임단가)", "원")}
         {F("days", "월 근무일수", "일")}
         {F("teamMax", "동시 가용 인력", "명")}
+        {F("targetMargin", "목표 마진", "%")}
         {F("burden", "법정부담금", "%")}
         {F("overhead", "제경비", "%")}
         {F("rework", "수정·검수 대응", "%")}
@@ -669,7 +683,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
           {revised && <span className="revised">정정</span>}
           {b.title}
         </a>
-        {ws && (
+        {ws && !an.working && (
           <div className={`rp-stamp g-${ws.grade}`}>
             <b>{ws.score}</b><small>점</small>
             <span>{ws.grade} · {ws.label}</span>
@@ -677,7 +691,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
         )}
       </header>
 
-      <dl className="rp-info">
+      {r && !an.working && <dl className="rp-info">
         <div><dt>공고기관</dt><dd>{b.org || "-"}{b.demand_org && b.demand_org !== b.org ? ` / 수요 ${b.demand_org}` : ""}</dd></div>
         <div><dt>추정가격</dt><dd>{b.price ? `${b.price.toLocaleString("ko-KR")}원` : "미공개"}</dd></div>
         <div><dt>입찰마감</dt><dd>{when(b.close_at)}</dd></div>
@@ -685,10 +699,9 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
         <div><dt>공고번호</dt><dd>{b.bid_no}-{b.bid_ord}</dd></div>
         <div><dt>게시일</dt><dd>{at(b.posted_at)}</dd></div>
         {a?.presenter && <div className="rp-presenter"><dt>제안발표</dt><dd><b>{a.presenter}</b> <Est k="presenter" /></dd></div>}
-      </dl>
+      </dl>}
 
-      {r && an.working && <div className="rp-body"><AnalyzeProgress started={an.started} /></div>}
-      {!r ? (
+      {(!r || an.working) ? (
         <div className="rp-body">
           {an.error ? (
             <div className="an-wait an-err">분석하지 못했습니다: {an.error} <button className="mini" onClick={() => an.retry(true)}>다시 시도</button></div>
@@ -709,35 +722,37 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
 
           {est && (
             <section>
-              <H>M/M 기준 원가 · 마진</H>
+              <H>예산 기준 인력 계획 · 원가</H>
               {est.confidence === "낮음" && (
                 <p className="rp-warn">분량을 문서에서 확인하지 못해 가정으로 계산했습니다. 마진·점수가 실제와 크게 다를 수 있으니 제안요청서의 분량(강좌·주차·차시·편수)을 확인하세요.</p>
               )}
+              <p className="rp-plan-note">역마진 없이 <b>목표 마진 {Math.round(est.model.targetMargin * 100)}%</b>를 남긴다는 전제로, 예산 안에서 쓸 수 있는 인력을 배치하고 산출량을 소화할 수 있는지 봅니다.</p>
               <div className="rp-kpis">
-                <div><span>투입 인력</span><b>{est.heads}명</b><small>평균 투입률 {Math.round(est.avgRate * 100)}% × {est.months}개월</small></div>
-                <div><span>직접원가</span><b>{est.fmt.total}</b><small>범위 {est.fmt.lo} ~ {est.fmt.hi}</small></div>
-                <div><span>추정가격</span><b>{est.fmt.supply}</b><small>부가세 제외</small></div>
-                <div className={est.margin === null ? "" : est.margin < 0 ? "bad" : est.margin < 0.1 ? "warn" : "good"}>
-                  <span>마진 (제경비·예비비 포함)</span><b>{est.margin === null ? "-" : `${Math.round(est.margin * 100)}%`}</b>
-                  <small>{est.margin === null ? "가격 미공개" : `순이익 ${Math.round((est.net / est.supply) * 100)}% · 범위 ${Math.round(est.range.marginLo * 100)}~${Math.round(est.range.marginHi * 100)}%`}</small>
+                <div><span>투입 인력 (예산 내)</span><b>{est.heads}명</b><small>평균 투입률 {Math.round(est.avgRatePlan * 100)}% × {est.months}개월</small></div>
+                <div className={est.intensity === null ? "" : est.intensity <= 1 ? "good" : est.intensity <= 1.25 ? "warn" : "bad"}>
+                  <span>작업 강도</span><b>{est.intensity === null ? "-" : `${Math.round(est.intensity * 100)}%`}</b>
+                  <small>{est.intensity === null ? "가격 미공개" : `필요 투입률 ${Math.round(est.avgRateNeed * 100)}% ÷ 예산 내 ${Math.round(est.avgRatePlan * 100)}%`}</small>
                 </div>
+                <div><span>직접원가 (계획)</span><b>{est.fmt.total}</b><small>추정가격 {est.fmt.supply}</small></div>
+                <div className="good"><span>마진 (제경비·예비비 포함)</span><b>{est.margin === null ? "-" : `${Math.round(est.margin * 100)}%`}</b>
+                  <small>{est.margin === null ? "가격 미공개" : `순이익 ${Math.round((est.net / est.supply) * 100)}%`}</small></div>
               </div>
               <table className="rp-mm">
-                <thead><tr><th>역할</th><th>등급</th><th>인원</th><th>투입률 × {est.months}개월</th><th>인건비</th></tr></thead>
+                <thead><tr><th>역할</th><th>등급</th><th>인원</th><th>예산 내 투입률</th><th>필요 투입률</th><th>인건비</th></tr></thead>
                 <tbody>
-                  {est.table.map((x, i) => <tr key={i}><td>{x.role}</td><td>{x.grade}</td><td>{x.heads}명</td><td>{Math.round(x.rate * 100)}%</td><td>{est.won(x.cost)}</td></tr>)}
-                  {est.inMM > 0 && <tr className="sub"><td>└ 내부 제작 인력</td><td>회사 설정 인건비</td><td></td><td>{est.inMM}</td><td>{est.won(est.inLabor)}</td></tr>}
-                  {est.inMM > 0 && <tr className="sub"><td>└ 그 외</td><td>노임단가</td><td></td><td>{est.exMM}</td><td>{est.won(est.exLabor)}</td></tr>}
-                  <tr className="sum"><td>① 직접인건비</td><td></td><td>{est.heads}명</td><td>평균 {Math.round(est.avgRate * 100)}%</td><td>{est.fmt.labor}</td></tr>
-                  <tr><td>② 법정부담금</td><td colSpan={3}>4대보험 사업주분 등, ①의 {Math.round(est.model.burden * 100)}%</td><td>{est.fmt.burden}</td></tr>
-                  <tr><td>③ 직접경비</td><td colSpan={3}>{est.model.ownFacility ? "자체 스튜디오·장비 사용(제외), 출연·외주·소모품" : "장비·스튜디오·출연·외주"} + 월 고정경비 {Math.round(est.model.fixedMonthly / 10000)}만원 × {est.months}개월</td><td>{est.fmt.direct}</td></tr>
-                  <tr className="sum"><td>직접원가 (①+②+③)</td><td colSpan={3}></td><td>{est.fmt.total}</td></tr>
+                  {est.table.map((x, i) => <tr key={i}><td>{x.role}</td><td>{x.grade}</td><td>{x.heads}명</td><td>{Math.round(x.rate * 100)}%</td><td className={x.needRate > x.rate * 1.25 ? "neg" : ""}>{Math.round(x.needRate * 100)}%</td><td>{est.won(x.cost)}</td></tr>)}
+                  {est.inMM > 0 && <tr className="sub"><td>└ 내부 제작 인력</td><td>회사 설정 인건비</td><td></td><td></td><td>{est.inMM}</td><td>{est.won(est.inLabor)}</td></tr>}
+                  {est.inMM > 0 && <tr className="sub"><td>└ 그 외</td><td>노임단가</td><td></td><td></td><td>{est.exMM}</td><td>{est.won(est.exLabor)}</td></tr>}
+                  <tr className="sum"><td>① 직접인건비</td><td></td><td>{est.heads}명</td><td>평균 {Math.round(est.avgRatePlan * 100)}%</td><td>평균 {Math.round(est.avgRateNeed * 100)}%</td><td>{est.fmt.labor}</td></tr>
+                  <tr><td>② 법정부담금</td><td colSpan={4}>4대보험 사업주분 등, ①의 {Math.round(est.model.burden * 100)}%</td><td>{est.fmt.burden}</td></tr>
+                  <tr><td>③ 직접경비</td><td colSpan={4}>{est.model.ownFacility ? "자체 스튜디오·장비 사용(제외), 출연·외주·소모품" : "장비·스튜디오·출연·외주"} + 월 고정경비 {Math.round(est.model.fixedMonthly / 10000)}만원 × {est.months}개월</td><td>{est.fmt.direct}</td></tr>
+                  <tr className="sum"><td>직접원가 (①+②+③)</td><td colSpan={4}></td><td>{est.fmt.total}</td></tr>
                   {est.supply && <>
-                    <tr><td>추정가격</td><td colSpan={3}>부가세 제외</td><td>{est.fmt.supply}</td></tr>
-                    <tr className="sum"><td>마진</td><td colSpan={3}>추정가격 − 직접원가 ({Math.round(est.margin * 100)}%)</td><td className={est.margin < 0 ? "neg" : ""}>{est.fmt.margin}</td></tr>
-                    <tr className="sub"><td>└ 제경비 몫</td><td colSpan={3}>직접인건비의 {Math.round(est.model.overhead * 100)}%</td><td>{est.fmt.overhead}</td></tr>
-                    <tr className="sub"><td>└ 예비비 몫</td><td colSpan={3}>직접원가의 {Math.round(est.model.contingency * 100)}%</td><td>{est.fmt.contingency}</td></tr>
-                    <tr className="sub"><td>└ 순이익</td><td colSpan={3}>{Math.round((est.net / est.supply) * 100)}%</td><td className={est.net < 0 ? "neg" : ""}>{est.fmt.net}</td></tr>
+                    <tr><td>추정가격</td><td colSpan={4}>부가세 제외</td><td>{est.fmt.supply}</td></tr>
+                    <tr className="sum"><td>마진</td><td colSpan={4}>추정가격 − 직접원가 ({Math.round(est.margin * 100)}%)</td><td className={est.margin < 0 ? "neg" : ""}>{est.fmt.margin}</td></tr>
+                    <tr className="sub"><td>└ 제경비 몫</td><td colSpan={4}>직접인건비의 {Math.round(est.model.overhead * 100)}%</td><td>{est.fmt.overhead}</td></tr>
+                    <tr className="sub"><td>└ 예비비 몫</td><td colSpan={4}>직접원가의 {Math.round(est.model.contingency * 100)}%</td><td>{est.fmt.contingency}</td></tr>
+                    <tr className="sub"><td>└ 순이익</td><td colSpan={4}>{Math.round((est.net / est.supply) * 100)}%</td><td className={est.net < 0 ? "neg" : ""}>{est.fmt.net}</td></tr>
                   </>}
                 </tbody>
               </table>
@@ -845,7 +860,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
         </div>
       )}
 
-      <section className="rp-files">
+      {r && !an.working && <section className="rp-files">
         <H>첨부 문서</H>
         <Files files={b.files || []} detailUrl={b.url} loading={an.working} />
         {fs.length > 0 && (
@@ -857,15 +872,15 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
             ))}
           </ul>
         )}
-      </section>
+      </section>}
 
-      <footer className="rp-foot">
+      {r && !an.working && <footer className="rp-foot">
         <span className="rp-src">
           {a?.sources?.length ? `분석 근거: ${a.sources.join(", ")}` : r ? "첨부를 읽지 못해 공고 정보로만 판단" : ""}
           {r && <button className="mini" onClick={() => an.retry(true)} disabled={an.working}>{an.working ? "다시 분석하는 중" : "다시 분석"}</button>}
         </span>
         <Stamps bid={b} onUpdate={onUpdate} an={an} say={say} section={section} />
-      </footer>
+      </footer>}
     </article>
   );
 }

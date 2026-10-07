@@ -577,3 +577,12 @@ textarea.full { min-height: 64px; resize: vertical; }
 body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; word-break: keep-all; overflow-wrap: anywhere; letter-spacing: -0.01em; }
 table, .rp-kpis, .price, .dday, .rp-mm, .rp-info { font-variant-numeric: tabular-nums; }
 h1, h2, h3, h4, .rp-title, .title, .sections button { letter-spacing: -0.025em; }
+/* 검토·분석: 공고기관별 하위 분류 */
+.org-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.org-tabs button { border: 1px solid var(--line); background: var(--sheet); border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; color: var(--ink); }
+.org-tabs button span { color: var(--muted); font-size: 12px; margin-left: 2px; }
+.org-tabs button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.org-tabs button.on span { color: #fff; opacity: .8; }
+.rp-plan-note { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+.rp-plan-note b { color: var(--ink); }
+.rp-info dt { flex: 0 0 84px; white-space: nowrap; }
