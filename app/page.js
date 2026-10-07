@@ -6,12 +6,12 @@ import { at, dday, money, when } from "@/components/format";
 const TABS = [
   ["all", "전체"],
   ["new", "신규"],
-  ["pass", "패스"],
+  ["pass", "불참"],
 ];
 const STAMPS = [
   ["review", "검토"],
   ["join", "참여"],
-  ["pass", "패스"],
+  ["pass", "불참"],
 ];
 
 // 마감까지 5일 이내 남은 공고 (준비 기간 부족으로 패스)
@@ -39,9 +39,10 @@ export default function Home() {
   const [collecting, setCollecting] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const say = (text, bad) => {
-    setToast({ text, bad });
-    setTimeout(() => setToast(null), 3500);
+  const say = (text, bad, undo) => {
+    setToast({ text, bad, undo });
+    clearTimeout(say.t);
+    say.t = setTimeout(() => setToast(null), undo ? 6000 : 3500);
   };
 
   const load = useCallback(async () => {
@@ -120,7 +121,6 @@ export default function Home() {
     const b = data.bids.find((x) => x.key === focus);
     if (!b) return;
     setSection(b.status === "review" ? "review" : b.status === "join" ? "join" : "bids");
-    setTab(b.status === "pass" ? "pass" : "new");
     if (b.close_at && new Date(b.close_at).getTime() < Date.now()) setHideClosed(false);
     setTimeout(() => document.getElementById(`bid-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
   }, [focus, data?.bids?.length]);
@@ -157,7 +157,7 @@ export default function Home() {
 
   // 검토로 넘긴 공고는 '입찰 공고' 쪽(전체·신규 등)에서 빼고 '검토·분석'에서만 보임
   const bidsOnly = useMemo(
-    () => base.filter((b) => b.status !== "review" && b.status !== "join"), // 검토·참여로 넘긴 공고는 항상 제외
+    () => base.filter((b) => b.status === "new"), // 검토·참여로 넘긴 공고, 불참(패스) 공고는 제외
     [base]
   );
   const counts = useMemo(() => {
@@ -171,7 +171,7 @@ export default function Home() {
   const shown =
     section === "review" ? reviewList :
     section === "join" ? joinList :
-    bidsOnly.filter((b) => b.status === (tab === "pass" ? "pass" : "new"));
+    bidsOnly.filter((b) => b.status === "new");
   const run = data?.lastRun;
 
   return (
@@ -200,12 +200,6 @@ export default function Home() {
       </div>
 
 
-      {section === "bids" && tab === "pass" && (
-        <div className="low-toggle">
-          패스한 공고를 보고 있습니다.
-          <button className="mini" onClick={() => setTab("new")}>입찰 공고로 돌아가기</button>
-        </div>
-      )}
 
       <div className="filters">
         <input className="field search" type="search" placeholder="모인 공고에서 찾기 (공고명·기관)" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -246,16 +240,16 @@ export default function Home() {
 
       <footer className="page-foot">
         {data?.topic && <Subscribe topic={data.topic} say={say} />}
-        {section === "bids" && counts.pass > 0 && (
-          <button className="foot-link" onClick={() => setTab(tab === "pass" ? "new" : "pass")}>
-            {tab === "pass" ? "입찰 공고로 돌아가기" : `패스한 공고 ${counts.pass}건`}
-          </button>
-        )}
         10분마다 자동으로 수집합니다.
         <button className="foot-link" onClick={collect} disabled={collecting}>{collecting ? "수집 중" : "수동 수집"}</button>
       </footer>
 
-      {toast && <div className={`toast ${toast.bad ? "bad" : ""}`} role="status">{toast.text}</div>}
+      {toast && (
+        <div className={`toast ${toast.bad ? "bad" : ""}`} role="status">
+          {toast.text}
+          {toast.undo && <button className="toast-undo" onClick={() => { toast.undo(); setToast(null); }}>되돌리기</button>}
+        </div>
+      )}
     </>
   );
 }
@@ -453,6 +447,12 @@ function BidRow({ bid: b, onUpdate, an, focused, detail, say, section }) {
               key={id} className={`stamp ${id} ${on ? "on" : ""}`} aria-pressed={on}
               title={on ? `${label} 해제` : `${label}(으)로 표시`}
               onClick={() => {
+                if (id === "pass") {
+                  const prev = b.status;
+                  onUpdate(b.key, { status: "pass" });
+                  say("불참으로 삭제했습니다.", false, () => onUpdate(b.key, { status: prev }));
+                  return;
+                }
                 // 참여 해제는 검토·분석으로 되돌림
                 onUpdate(b.key, { status: on ? (id === "join" ? "review" : "new") : id });
                 if (!on && id === "join") say("참여로 옮겼습니다.");

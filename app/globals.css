@@ -417,3 +417,4 @@ textarea.full { min-height: 64px; resize: vertical; }
 .brand-logo { height: 18px; width: auto; display: block; }
 @media (prefers-color-scheme: dark) { .brand-logo { filter: brightness(0) invert(1); opacity: .8; } }
 @media (max-width: 480px) { .brand-logo { height: 16px; } }
+.toast-undo { margin-left: 10px; border: 0; background: none; color: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
