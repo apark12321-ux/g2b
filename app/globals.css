@@ -586,3 +586,4 @@ h1, h2, h3, h4, .rp-title, .title, .sections button { letter-spacing: -0.025em; 
 .rp-plan-note { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
 .rp-plan-note b { color: var(--ink); }
 .rp-info dt { flex: 0 0 84px; white-space: nowrap; }
+.via { color: var(--muted); font-size: 12px; }

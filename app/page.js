@@ -25,6 +25,13 @@ const soon = (b) => {
   return left > 0 && left < SKIP_DAYS * 864e5; // 이미 마감된 공고는 '마감 지난 공고 숨기기'가 따로 처리
 };
 
+/** 실제로 일을 주는 곳: 조달청이 대행한 공고는 수요기관을 씀 */
+const clientOf = (b) => {
+  const org = String(b.org || "").trim(), dem = String(b.demand_org || "").trim();
+  if (dem && (/조달청/.test(org) || !org)) return dem;
+  return org || dem || "기관 미상";
+};
+
 export default function Home() {
   const [data, setData] = useState(null);
   const [loadErr, setLoadErr] = useState("");
@@ -202,7 +209,7 @@ export default function Home() {
     .map((x) => x[0]);
   const joinList = base.filter((b) => b.status === "join");
   // 공고기관 이름 정리: "OO대학교 산학협력단" → "OO대학교" 처럼 큰 단위로 묶음
-  const orgName = (b) => String(b.org || "기관 미상").replace(/\s*(산학협력단|산학협력단장|본부|사업단|센터)$/, "").trim();
+  const orgName = (b) => clientOf(b).replace(/\s*(산학협력단|산학협력단장|본부|사업단|센터)$/, "").trim();
   const orgs = [...reviewList.reduce((m, b) => m.set(orgName(b), (m.get(orgName(b)) || 0) + 1), new Map())].sort((x, y) => y[1] - x[1]);
   const shown =
     section === "review" ? reviewList.filter((b) => !orgPick || orgName(b) === orgPick) :
@@ -692,7 +699,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
       </header>
 
       {r && !an.working && <dl className="rp-info">
-        <div><dt>공고기관</dt><dd>{b.org || "-"}{b.demand_org && b.demand_org !== b.org ? ` / 수요 ${b.demand_org}` : ""}</dd></div>
+        <div><dt>발주기관</dt><dd>{clientOf(b)}{/조달청/.test(b.org || "") && b.demand_org ? <small className="via"> (조달청 대행)</small> : b.demand_org && b.demand_org !== b.org ? <small className="via"> · 수요 {b.demand_org}</small> : null}</dd></div>
         <div><dt>추정가격</dt><dd>{b.price ? `${b.price.toLocaleString("ko-KR")}원` : "미공개"}</dd></div>
         <div><dt>입찰마감</dt><dd>{when(b.close_at)}</dd></div>
         <div><dt>참가지역</dt><dd>{b.region || "확인 중"}</dd></div>
@@ -952,7 +959,7 @@ function BidRow({ bid: b, onUpdate, an, focused, detail, say, section }) {
           {b.title}
         </a>
         <div className="meta">
-          <span>{b.org || "-"}{b.demand_org && b.demand_org !== b.org ? ` (수요 ${b.demand_org})` : ""}</span>
+          <span>{clientOf(b)}{/조달청/.test(b.org || "") && b.demand_org ? " (조달청 대행)" : ""}</span>
           <span className="price" title={b.price ? `${b.price.toLocaleString("ko-KR")}원` : ""}>{money(b.price)}</span>
           <span>마감 {when(b.close_at)}</span>
           {b.region && b.region !== "전국" && <span className="region">참가지역 {b.region}</span>}
