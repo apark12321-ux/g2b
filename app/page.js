@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/components/api";
 import { at, dday, money, when } from "@/components/format";
 import { winScore, reviewRisks, BOILERPLATE } from "@/lib/score";
-import { estimateCost, COST, LABOR, costModel } from "@/lib/cost";
+import { estimateCost, COST, LABOR, UNIT, costModel } from "@/lib/cost";
 import { titleVideoOnly } from "@/lib/video-score";
 
 const TABS = [
@@ -117,7 +117,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || !b.analysis.fileStatus || !b.analysis.presenter || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 3 || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -407,7 +407,8 @@ function Files({ files, detailUrl, loading }) {
   return (
     <div className="files">
       {files.map((f) => (
-        <a key={f.url} className="file" href={fileLink(f, detailUrl)} download={f.name} title={`${f.name} 받기`}>
+        <a key={f.url} className={`file ${f.rfp ? "rfp-file" : ""}`} href={fileLink(f, detailUrl)} download={f.name} title={`${f.name} 받기`}>
+          {f.rfp && <span className="rfp-tag">{f.doc || "제안요청서"}</span>}
           <span className="ext">{extOf(f.name)}</span>
           <span className="fname">{f.name}</span>
         </a>
@@ -508,20 +509,13 @@ function Review({ bid: b, an }) {
 /** 회사 원가 기준 (모든 리포트에 공통 적용) */
 function CostEditor({ model, onSaved, say }) {
   const M = costModel(model);
-  const [f, setF] = useState({
-    monthlyLabor: Math.round(M.monthlyLabor / 10000), teamMax: M.teamMax, overhead: Math.round(M.overhead * 100),
-    chasiMM: M.units.차시.mm, chasiDirect: Math.round(M.units.차시.direct / 10000),
-    videoMM: M.units.편.mm, videoDirect: Math.round(M.units.편.direct / 10000),
-    shortsMM: M.units.쇼츠.mm, shortsDirect: Math.round(M.units.쇼츠.direct / 10000),
-  });
+  const init = { rateMid: M.rate.중급, rateLow: M.rate.초급, days: M.days, teamMax: M.teamMax, overhead: Math.round(M.overhead * 100) };
+  for (const k of Object.keys(UNIT)) { init[`mm_${k}`] = M.units[k].mm; init[`direct_${k}`] = Math.round(M.units[k].direct / 10000); }
+  const [f, setF] = useState(init);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const save = async () => {
-    const body = {
-      monthlyLabor: Number(f.monthlyLabor) * 10000, teamMax: Number(f.teamMax), overhead: Number(f.overhead) / 100,
-      chasiMM: Number(f.chasiMM), chasiDirect: Number(f.chasiDirect) * 10000,
-      videoMM: Number(f.videoMM), videoDirect: Number(f.videoDirect) * 10000,
-      shortsMM: Number(f.shortsMM), shortsDirect: Number(f.shortsDirect) * 10000,
-    };
+    const body = { ...f, overhead: Number(f.overhead) / 100 };
+    for (const k of Object.keys(UNIT)) body[`direct_${k}`] = Number(f[`direct_${k}`]) * 10000;
     try { onSaved(await api("/api/cost-model", { method: "PUT", body: JSON.stringify(body) })); }
     catch (e) { say(e.message, true); }
   };
@@ -531,17 +525,16 @@ function CostEditor({ model, onSaved, say }) {
   );
   return (
     <div className="cost-edit">
-      <p>실제 후미디어 기준으로 고치면 모든 공고의 원가·마진이 다시 계산됩니다. (MM = 사람 × 개월)</p>
+      <p>M/M(사람×월) 기준입니다. 인건비 = M/M × 1일 노임단가 × 월 근무일수. 고치면 모든 공고에 바로 다시 계산됩니다.</p>
       <div className="ce-grid">
-        {F("monthlyLabor", "1인 월 인건비", "만원")}
+        {F("rateMid", "중급 기술자 1일 노임", "원")}
+        {F("rateLow", "초급 기술자 1일 노임", "원")}
+        {F("days", "월 근무일수", "일")}
         {F("teamMax", "동시 가용 인력", "명")}
         {F("overhead", "간접비", "%")}
-        {F("chasiMM", "이러닝 1차시 투입", "MM")}
-        {F("chasiDirect", "이러닝 1차시 경비", "만원")}
-        {F("videoMM", "영상 1편 투입", "MM")}
-        {F("videoDirect", "영상 1편 경비", "만원")}
-        {F("shortsMM", "숏폼 1편 투입", "MM")}
-        {F("shortsDirect", "숏폼 1편 경비", "만원")}
+      </div>
+      <div className="ce-grid">
+        {Object.entries(UNIT).flatMap(([k, u]) => [F(`mm_${k}`, `${u.label} 1개`, "M/M"), F(`direct_${k}`, `${k} 1개 경비`, "만원")])}
       </div>
       <button className="btn primary" onClick={save}>저장</button>
     </div>
@@ -583,7 +576,15 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
       <header className="rp-head">
         <div className="rp-kicker">
           <span>{section === "join" ? "참여 결정 공고" : "입찰 검토 리포트"}</span>
-          <span className={`rp-dday ${d.tone}`}>{d.big}{d.big !== "마감" ? "" : ""}</span>
+          <span className={`rp-dday ${d.tone}`}>{d.big}</span>
+          {(() => {
+            const rfp = (a?.fileStatus || []).find((x) => /제안\s*요청/.test(x.name));
+            const hasRfp = (b.files || []).some((x) => /제안\s*요청/.test(x.name));
+            if (rfp && /읽음/.test(rfp.status)) return <span className="rfp ok">제안요청서 분석 완료</span>;
+            if (rfp) return <span className="rfp ng">제안요청서 {rfp.status}</span>;
+            if (hasRfp) return <span className="rfp ng">제안요청서 미분석</span>;
+            return a ? <span className="rfp ng">제안요청서 없음</span> : null;
+          })()}
         </div>
         <a className="rp-title" href={b.url} target="_blank" rel="noreferrer">
           {(a?.video?.only ?? titleVideoOnly(b.title)) ? <span className="prio only">영상 제작</span>
@@ -630,30 +631,34 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
 
           {est && (
             <section>
-              <H>인력 · 원가 · 마진 추정</H>
-              {est.unknown ? (
-                <p className="na">{est.notes[0]}</p>
-              ) : (
-                <>
-                  <div className="rp-kpis">
-                    <div><span>예상 투입</span><b>{est.mm}MM</b><small>월 {est.people}명 × {est.months}개월</small></div>
-                    <div><span>예상 원가</span><b>{est.fmt.total}</b><small>범위 {est.fmt.lo} ~ {est.fmt.hi}</small></div>
-                    <div><span>추정가격</span><b>{est.fmt.supply}</b><small>부가세 제외</small></div>
-                    <div className={est.margin === null ? "" : est.margin < 0 ? "bad" : est.margin < 0.1 ? "warn" : "good"}>
-                      <span>예상 마진</span><b>{est.margin === null ? "-" : `${Math.round(est.margin * 100)}%`}</b>
-                      <small>{est.margin === null ? "가격 미공개" : `범위 ${Math.round(est.range.marginLo * 100)}% ~ ${Math.round(est.range.marginHi * 100)}%`}</small>
-                    </div>
-                  </div>
-                  <p className={`rp-conf c-${est.confidence}`}>추정 신뢰도 <b>{est.confidence}</b> — {est.basis}</p>
-                  {est.notes.map((x, i) => <p key={i} className="rp-note">{x}</p>)}
-                  <p className="rp-assume">
-                    인건비는 {LABOR.source} 기준 1인 월 {Math.round(COST.monthlyLabor / 10000)}만원
-                    (중급 {LABOR.중급.toLocaleString("ko-KR")}원·초급 {LABOR.초급.toLocaleString("ko-KR")}원/일 × {LABOR.days}일){est.model.monthlyLabor !== COST.monthlyLabor ? ` → 회사 설정 ${Math.round(est.model.monthlyLabor / 10000)}만원` : ""}, 간접비 {Math.round(est.model.overhead * 100)}%, 가용 인력 {est.model.teamMax}명{est.model.custom ? " (회사 설정 적용)" : ""}.
-                    {" "}<button className="mini" onClick={() => setEditCost(!editCost)}>{editCost ? "닫기" : "원가 기준 수정"}</button>
-                  </p>
-                  {editCost && <CostEditor model={model} onSaved={(m) => { onModel(m); setEditCost(false); say("원가 기준을 저장했습니다. 모든 리포트에 바로 적용됩니다."); }} say={say} />}
-                </>
-              )}
+              <H>M/M 기준 원가 · 마진</H>
+              <div className="rp-kpis">
+                <div><span>총 투입</span><b>{est.mm}M/M</b><small>중급 {est.mmMid} · 초급 {est.mmLow} · 월 {est.people}명 × {est.months}개월</small></div>
+                <div><span>예상 원가</span><b>{est.fmt.total}</b><small>범위 {est.fmt.lo} ~ {est.fmt.hi}</small></div>
+                <div><span>추정가격</span><b>{est.fmt.supply}</b><small>부가세 제외</small></div>
+                <div className={est.margin === null ? "" : est.margin < 0 ? "bad" : est.margin < 0.1 ? "warn" : "good"}>
+                  <span>예상 마진</span><b>{est.margin === null ? "-" : `${Math.round(est.margin * 100)}%`}</b>
+                  <small>{est.margin === null ? "가격 미공개" : `범위 ${Math.round(est.range.marginLo * 100)}% ~ ${Math.round(est.range.marginHi * 100)}%`}</small>
+                </div>
+              </div>
+              <table className="rp-mm">
+                <thead><tr><th>역할</th><th>등급</th><th>M/M</th><th>인건비</th></tr></thead>
+                <tbody>
+                  {est.table.map((x, i) => <tr key={i}><td>{x.role}</td><td>{x.grade}</td><td>{x.mm}</td><td>{est.won(x.cost)}</td></tr>)}
+                  <tr className="sum"><td>인건비 계</td><td></td><td>{est.mm}</td><td>{est.fmt.labor}</td></tr>
+                  <tr><td>직접경비</td><td colSpan={2}>촬영·장비·출연·외주 등</td><td>{est.fmt.direct}</td></tr>
+                  <tr><td>간접비</td><td colSpan={2}>{Math.round(est.model.overhead * 100)}%</td><td>{est.fmt.overhead}</td></tr>
+                  <tr className="sum"><td>원가 합계</td><td></td><td></td><td>{est.fmt.total}</td></tr>
+                </tbody>
+              </table>
+              <p className={`rp-conf c-${est.confidence}`}>추정 신뢰도 <b>{est.confidence}</b> — {est.basis}</p>
+              {est.notes.map((x, i) => <p key={i} className="rp-note">{x}</p>)}
+              <p className="rp-assume">
+                노임단가: 중급 {est.model.rate.중급.toLocaleString("ko-KR")}원 · 초급 {est.model.rate.초급.toLocaleString("ko-KR")}원/일 × {est.model.days}일
+                {est.model.custom ? " (회사 설정)" : ` (${LABOR.source})`}, 가용 인력 {est.model.teamMax}명.
+                {" "}<button className="mini" onClick={() => setEditCost(!editCost)}>{editCost ? "닫기" : "원가 기준 수정"}</button>
+              </p>
+              {editCost && <CostEditor model={model} onSaved={(m) => { onModel(m); setEditCost(false); say("원가 기준을 저장했습니다. 모든 리포트에 바로 적용됩니다."); }} say={say} />}
             </section>
           )}
 
