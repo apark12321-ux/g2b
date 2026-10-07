@@ -374,3 +374,13 @@ textarea.full { min-height: 64px; resize: vertical; }
 .rv-badge-row { margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .rv-badge { font-size: 12px; font-weight: 700; color: #fff; border-radius: 4px; padding: 2px 8px; }
 .rv-badge-hint { font-size: 12px; color: var(--muted); }
+
+/* 휴대폰 알림 안내: 맨 아래 구석에 접어 둠 */
+.sub-mini { margin: 0 auto 10px; max-width: 520px; text-align: left; font-size: 12px; color: var(--muted); }
+.sub-mini summary { cursor: pointer; text-align: center; list-style: none; text-decoration: underline; text-underline-offset: 2px; opacity: .8; }
+.sub-mini summary::-webkit-details-marker { display: none; }
+.sub-mini[open] { background: var(--sheet); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.sub-mini[open] summary { margin-bottom: 6px; text-decoration: none; font-weight: 700; color: var(--ink); }
+.sub-mini .sub-how { font-size: 12px; margin-bottom: 8px; }
+.sub-mini .topic-box code { font-size: 13px; padding: 6px 10px; }
+.sub-mini .topic-box .btn { padding: 6px 10px; font-size: 12px; }

@@ -179,7 +179,6 @@ export default function Home() {
         </div>
       </div>
 
-      {data?.topic && <Subscribe topic={data.topic} say={say} />}
 
       <div className="filters">
         <div className="tabs" role="tablist">
@@ -222,6 +221,7 @@ export default function Home() {
       </div>
 
       <footer className="page-foot">
+        {data?.topic && <Subscribe topic={data.topic} say={say} />}
         10분마다 자동으로 수집합니다.
         <button className="foot-link" onClick={collect} disabled={collecting}>{collecting ? "수집 중" : "수동 수집"}</button>
       </footer>
@@ -237,8 +237,8 @@ function Subscribe({ topic, say }) {
     say("채널 이름을 복사했습니다.");
   };
   return (
-    <section className="panel subscribe">
-      <h2>휴대폰으로 알림 받기</h2>
+    <details className="sub-mini">
+      <summary>휴대폰 알림 받기</summary>
       <p className="sub-how">
         휴대폰에 <b>ntfy</b> 앱을 설치하고, 앱에서 <b>+</b>를 눌러 아래 채널 이름을 구독하세요.
         구독할 때 <b>대기 상태에서 즉시 알림받기</b>만 체크하세요.
@@ -247,7 +247,7 @@ function Subscribe({ topic, say }) {
         <code>{topic}</code>
         <button className="btn" onClick={copy}>복사</button>
       </div>
-    </section>
+    </details>
   );
 }
 
