@@ -1,4 +1,5 @@
 # 나라장터 공고 자동 수집 — cron-job.org가 멈췄을 때를 대비한 두 번째 경로
+# 사이트의 '수동 수집' 버튼과 같은 창구(POST)를 두드리므로 따로 설정할 비밀값이 없다.
 name: collect
 
 on:
@@ -6,14 +7,17 @@ on:
     - cron: "*/10 * * * *"   # 10분마다 (깃허브 사정에 따라 몇 분 늦을 수 있음)
   workflow_dispatch:          # 저장소 Actions 탭에서 손으로도 실행 가능
 
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
 jobs:
   collect:
     runs-on: ubuntu-latest
     steps:
       - name: 수집 호출
         run: |
-          code=$(curl -sS -o /tmp/out.json -w '%{http_code}' --max-time 120 \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          code=$(curl -sS -X POST -o /tmp/out.json -w '%{http_code}' --max-time 150 \
             "${{ vars.SITE_URL || 'https://g2b-sand.vercel.app' }}/api/collect")
           echo "HTTP $code"; cat /tmp/out.json; echo
           test "$code" = "200"
