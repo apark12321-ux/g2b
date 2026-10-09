@@ -4,6 +4,7 @@ import { api } from "@/components/api";
 import { at, dday, money, when } from "@/components/format";
 import { winScore, reviewRisks, BOILERPLATE } from "@/lib/score";
 import { cashNeed } from "@/lib/payment";
+import { workMix, prepayLevel, capacityFit } from "@/lib/work-mix";
 import { estimateCost, COST, LABOR, UNIT, costModel } from "@/lib/cost";
 import { titleVideoOnly } from "@/lib/video-score";
 
@@ -142,7 +143,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 12 || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 13 || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -311,7 +312,7 @@ export default function Home() {
           {section === "join" ? (
             <><strong>참여하기로 한 공고가 없습니다</strong>검토·분석에서 <b>참여</b>를 누르면 여기로 옮겨집니다.</>
           ) : section === "review" ? (
-            <><strong>검토 중인 공고가 없습니다</strong>입찰 공고에서 <b>검토</b>를 누르면 여기서 리스크 분석을 볼 수 있습니다.</>
+            <><strong>검토 중인 공고가 없습니다</strong>입찰 공고에서 <b>검토</b>를 누르면 여기서 분석 결과를 볼 수 있습니다.</>
           ) : data.bids.length ? (
             <><strong>조건에 맞는 공고가 없습니다</strong>필터를 바꾸거나 마감 지난 공고도 표시해 보세요.</>
           ) : (
@@ -329,7 +330,7 @@ export default function Home() {
 
       <div className="list">
         {section === "schedule" && data && (
-          <ScheduleBoard bids={base.filter((b) => b.status !== "pass")} model={data.costModel}
+          <ScheduleBoard bids={base.filter((b) => b.status !== "pass")}
             onOpen={(b) => (b.status === "review" || b.status === "join" ? openReport(b.key) : (setSection("bids"), setFocus(b.key)))} />
         )}
         {section !== "schedule" && shown.map((b) => (section === "review" || section === "join") ? <ReportCard key={b.key} bid={b} onUpdate={update} focused={focus === b.key} section={section} say={say}
@@ -533,7 +534,7 @@ const TONE = { good: "v-good", warn: "v-warn", bad: "v-bad" };
 /** 목록에서 보이는 짧은 표시 */
 function ReviewBadge({ bid: b, an }) {
   const v = b.analysis?.review?.verdict;
-  if (an.working) return <div className="an-wait"><span className="dot on" aria-hidden />리스크 분석 중</div>;
+  if (an.working) return <div className="an-wait"><span className="dot on" aria-hidden />분석 중</div>;
   if (!v) return <div className="an-wait">검토·분석에서 분석 결과를 볼 수 있습니다</div>;
   return (
     <div className="rv-badge-row">
@@ -557,7 +558,7 @@ function Review({ bid: b, an }) {
     return (
       <div className="an-wait">
         <span className={an.working ? "dot on" : "dot"} aria-hidden />
-        {an.working ? "첨부파일을 읽고 리스크를 분석하는 중입니다" : "분석 대기 중"}
+        {an.working ? "첨부파일을 읽고 분석하는 중입니다" : "분석 대기 중"}
       </div>
     );
   }
@@ -623,12 +624,12 @@ const endOf = (a) => {
   return m ? new Date(`${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}T00:00:00+09:00`) : null;
 };
 const ST = { new: "신규", review: "검토", join: "참여" };
-/** 제안 일정 마일스톤 (분석 전이면 입찰마감 기준으로 추정) */
+/** 제안 일정 마일스톤 — 발표일은 문서에 적힌 날짜만 (예상일은 쓰지 않음) */
 const milestonesOf = (b) => {
   const m = b.analysis?.milestones || {};
   const close = m.close || b.close_at;
-  const present = m.present || (close ? new Date(new Date(close).getTime() + 5 * DAYMS).toISOString() : null);
-  return { qualify: m.qualify, close, submit: m.submit || close, open: m.open, present, presentEst: m.present ? !!m.presentEst : true };
+  const present = m.present && !m.presentEst ? m.present : null;
+  return { qualify: m.qualify, close, submit: m.submit || close, open: m.open, present };
 };
 const monthLabel = (d, edge) => {
   const x = new Date(d), day = x.getDate();
@@ -636,88 +637,64 @@ const monthLabel = (d, edge) => {
   return `${x.getMonth() + 1}월 ${part}`;
 };
 
-function ScheduleBoard({ bids, model, onOpen }) {
+function ScheduleBoard({ bids, onOpen }) {
   const today = kstDay(Date.now());
-  const M = costModel(model);
-  // ── ① 제안 마감 일정 (오늘 기준 6주)
-  const start = new Date(today.getTime() - 2 * DAYMS);
-  const DAYS = 42;
   const rows = bids
     .map((b) => ({ b, ms: milestonesOf(b) }))
-    .filter(({ ms }) => ms.close && new Date(ms.present || ms.close) >= today)
+    .filter(({ ms }) => ms.close && new Date(ms.close) >= today)
     .sort((x, y) => new Date(x.ms.close) - new Date(y.ms.close));
-  const col = (d) => Math.max(0, Math.min(DAYS, (kstDay(d) - start) / DAYMS));
-  const days = [...Array(DAYS)].map((_, i) => new Date(start.getTime() + i * DAYMS));
-
-  const Label = ({ b, extra }) => (
-    <button className="sc-label" onClick={() => onOpen(b)} title={b.title} data-org={clientOf(b)}>
-      <span className={`sc-st st-${b.status}`}>{ST[b.status]}</span>
-      <span className="sc-t">{b.title}</span>
-      <small>{clientOf(b)}{extra}</small>
-    </button>
-  );
+  const sameDay = (x, y) => x && y && +kstDay(x) === +kstDay(y);
 
   return (
     <div className="schedule">
       <section className="sc-block">
-        <h3>제안 일정 <small>공고 게시 → 자격등록 → <b>입찰 마감(제안서 제출)</b> → <b>발표</b>까지 · "발표?"는 예상일</small></h3>
+        <h3>제안 일정 <small>마감이 가까운 순 · 날짜는 공고문에 적힌 것만</small></h3>
         {!rows.length ? <p className="sc-empty">다가오는 마감이 없습니다.</p> : (
-          <div className="sc-scroll">
-            <div className="sc-grid" style={{ "--days": DAYS }}>
-              <div className="sc-head">
-                <div className="sc-corner" />
-                <div className="sc-days">
-                  {days.map((d, i) => {
-                    const w = d.getDay();
-                    const showM = d.getDate() === 1 || i === 0;
-                    return <span key={i} className={`${+d === +today ? "today" : ""} ${w === 0 || w === 6 ? "we" : ""} ${showM ? "m1" : ""}`} data-m={showM ? `${d.getMonth() + 1}월` : undefined}>{d.getDate()}</span>;
-                  })}
-                </div>
-              </div>
+          <table className="sc-table">
+            <thead>
+              <tr>
+                <th className="t-dday">남은 기간</th>
+                <th className="t-name">공고명</th>
+                <th>게시</th>
+                <th>자격등록</th>
+                <th className="t-close">입찰 마감</th>
+                <th>제안서 제출</th>
+                <th>PT 발표</th>
+              </tr>
+            </thead>
+            <tbody>
               {rows.map(({ b, ms }) => {
-                const from = col(b.posted_at || today), to = col(ms.present || ms.close); // 발표일에서 끊음
                 const left = Math.floor((new Date(ms.close) - Date.now()) / DAYMS);
-                const pin = (d, cls, label, title) => d && col(d) > 0 && col(d) < DAYS && (
-                  <span className={`sc-pin ${cls}`} style={{ left: `${((col(d) + 0.5) / DAYS) * 100}%` }} title={title}>{label}</span>
-                );
-                const sameDay = (x, y) => x && y && +kstDay(x) === +kstDay(y);
                 return (
-                  <div key={b.key} className="sc-row">
-                    <Label b={b} extra={` · 마감 ${md(ms.close)} (D-${Math.max(0, left)}) · 발표 ${md(ms.present)}${ms.presentEst ? "경(예상)" : ""}`} />
-                    <div className="sc-track">
-                      <div className="sc-today" style={{ left: `${(col(today) / DAYS) * 100}%` }} />
-                      <div className={`sc-bar st-${b.status}`} style={{ left: `${(from / DAYS) * 100}%`, width: `${Math.max(0.6, ((to - from + 1) / DAYS) * 100)}%` }} />
-                      {ms.qualify && new Date(ms.close) - new Date(ms.qualify) > 2 * DAYMS && pin(ms.qualify, "q", "자격", `입찰참가자격 등록 마감 ${md(ms.qualify)}`)}
-                      {pin(ms.close, "c", "마감", `입찰 마감 ${md(ms.close)}`)}
-                      {!sameDay(ms.submit, ms.close) && pin(ms.submit, "s", "제출", `제안서 제출 ${md(ms.submit)}`)}
-                      {pin(ms.present, `p ${ms.presentEst ? "est" : ""}`, ms.presentEst ? "발표?" : "발표", `제안 발표 ${md(ms.present)}${ms.presentEst ? " (예상)" : ""}`)}
-                    </div>
-                    {/* 휴대폰: 날짜를 글자로 각각 표시 */}
-                    <div className="sc-dates">
-                      {b.posted_at && <span className="d-post">게시 {md(b.posted_at)}</span>}
-                      {ms.qualify && <span className="d-q">자격 {md(ms.qualify)}</span>}
-                      <span className="d-c">마감 {md(ms.close)} <em>D-{Math.max(0, left)}</em></span>
-                      {!sameDay(ms.submit, ms.close) && ms.submit && <span className="d-s">제출 {md(ms.submit)}</span>}
-                      {ms.present && <span className={`d-p ${ms.presentEst ? "est" : ""}`}>발표 {md(ms.present)}{ms.presentEst ? " (예상)" : ""}</span>}
-                    </div>
-                  </div>
+                  <tr key={b.key} className={left <= 3 ? "soon" : ""}>
+                    <td className="t-dday"><b>D-{Math.max(0, left)}</b></td>
+                    <td className="t-name">
+                      <button className="sc-link" onClick={() => onOpen(b)} title={b.title}>
+                        <span className={`sc-st st-${b.status}`}>{ST[b.status]}</span>
+                        <span className="sc-t">{b.title}<small>{clientOf(b)}</small></span>
+                      </button>
+                    </td>
+                    <td data-l="게시">{b.posted_at ? md(b.posted_at) : "-"}</td>
+                    <td data-l="자격등록">{ms.qualify ? md(ms.qualify) : "-"}</td>
+                    <td className="t-close" data-l="입찰 마감"><b>{md(ms.close)}</b></td>
+                    <td data-l="제안서 제출">{ms.submit ? (sameDay(ms.submit, ms.close) ? "마감과 동일" : md(ms.submit)) : "-"}</td>
+                    <td data-l="PT 발표">{ms.present ? md(ms.present) : "-"}</td>
+                  </tr>
                 );
               })}
-            </div>
-          </div>
+            </tbody>
+          </table>
         )}
       </section>
-
     </div>
   );
 }
 
-/** 분석 진행 안내: 단계와 경과 시간 */
 function AnalyzeProgress({ started }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
   const sec = Math.max(0, Math.round((now - (started || now)) / 1000));
-  const steps = ["첨부 목록·제안요청서 확인", "제안요청서·과업지시서 내려받기", "문서 전체 읽기 (표·요구사항 포함)", "분량·인력·비용 항목 추출", "원가·마진·리스크 산정"];
+  const steps = ["첨부 목록·제안요청서 확인", "제안요청서·과업지시서 내려받기", "문서 전체 읽기 (표·요구사항 포함)", "분량·인력·비용 항목 추출", "원가·마진·걸리는 점 산정"];
   const at = sec < 4 ? 0 : sec < 15 ? 1 : sec < 60 ? 2 : sec < 100 ? 3 : 4;
   return (
     <div className="an-progress">
@@ -896,12 +873,37 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                     <small>{est?.net != null && est.supply ? `순이익 ${pct(est.net / est.supply)}` : "가격 미공개"}</small>
                   </div>
                   <div><span>투입 인력 <em className="tg est">추정</em></span><b>{est ? `${est.heads}명` : "-"}</b><small>{est ? `${est.months}개월 · 평균 ${pct(est.avgRatePlan)}` : ""}</small></div>
-                  <div><span>입찰 마감 <em className="tg fact">공고</em></span><b>{md(ms.close)}</b><small>{ms.presentEst ? `발표일 미기재 (${md(ms.present)}경 예상)` : `발표 ${md(ms.present)}`}</small></div>
-                  <div><span>대금 지급 <em className={`tg ${a.payment?.method ? "fact" : "est"}`}>{a.payment?.method ? "문서" : "미기재"}</em></span><b className="sm">{a.payment?.method || "문서에 지급 조건 없음"}</b><small>{cash ? `선투입 약 ${est.won(cash.peak)} (계산)` : a.payment?.method ? "" : "공고문·계약특수조건 확인 필요"}</small></div>
+                  <div><span>입찰 마감 <em className="tg fact">공고</em></span><b>{md(ms.close)}</b><small>{ms.present ? `PT 발표 ${md(ms.present)}` : "PT 발표일 문서에 없음"}</small></div>
+                  <div><span>대금 지급 <em className={`tg ${a.payment?.method ? "fact" : "est"}`}>{a.payment?.method ? "문서" : "미기재"}</em></span><b className="sm">{a.payment?.method || "문서에 지급 조건 없음"}</b><small>{cash ? (cash.peak < 1e6 ? "선금으로 충당 가능" : `선투입 약 ${est.won(cash.peak)}`) : a.payment?.method ? "" : "공고문·계약특수조건 확인 필요"}</small></div>
                 </div>
+                {(() => {
+                  const wm = a.workMix || workMix(b, a, "");
+                  const pre = a.prepay || prepayLevel(a.payment);
+                  const fit = a.capacity || capacityFit(wm, pre);
+                  if (!wm) return null;
+                  return (
+                    <div className="sum-box work">
+                      <h4>업무 포인트 <small>{wm.basis}</small></h4>
+                      <ul className="wm">
+                        {wm.mix.map((x) => (
+                          <li key={x.key} className={`wm-${x.key}`}>
+                            <b>{x.pct}%</b>
+                            <span>{x.label}<small>{x.hint}</small></span>
+                          </li>
+                        ))}
+                      </ul>
+                      {fit && (
+                        <p className={`wm-fit f-${fit.fit === "좋음" ? "good" : fit.fit === "보통" ? "warn" : "bad"}`}>
+                          <b>{fit.headline}</b>
+                          <span>선투자 {pre.level}{pre.level === "가능" && pre.pct ? ` (선금 ${pre.pct}%)` : ""} — {fit.note}</span>
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
                 {top.length > 0 && (
                   <div className="sum-box">
-                    <h4>핵심 리스크 <small>“문서” = 원문 근거 · “추정” = 원가·일정 계산 결과</small></h4>
+                    <h4>걸리는 점 <small>“문서” = 공고문에 적힌 내용 · “추정” = 원가·일정 계산 결과</small></h4>
                     <ul>{top.map((x, i) => (
                       <li key={i}>
                         <span className={`lv lv-${x.level === "높음" ? "hi" : "mid"}`}>{x.level}</span>{x.item}
@@ -931,7 +933,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
 
           {a.facts ? (
             <section className="rp-facts">
-              <H>핵심 사실 <small className="hs">문서·나라장터에 적힌 내용 그대로 · 없는 항목은 비워 둠</small></H>
+              <H>공고 주요 내용 <small className="hs">공고문·제안요청서에 적힌 그대로 · 없는 항목은 비워 둠</small></H>
               {a.facts.map((g) => (
                 <div key={g.group} className="fx-group">
                   <h4>{g.group}</h4>
@@ -1096,7 +1098,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
 
 
           {risks.length > 0 && (
-            <details className="rp-fold"><summary>리스크 전체 <small>{risks.length}건</small></summary>
+            <details className="rp-fold"><summary>걸리는 점 전체 <small>{risks.length}건</small></summary>
               
               <table className="rp-risk">
                 <thead><tr><th>수준</th><th>항목</th><th>근거</th></tr></thead>
@@ -1228,7 +1230,7 @@ function Stamps({ bid: b, onUpdate, an, say, section }) {
   if (section === "bids") {
     return (
       <div className="stamps solo" aria-label="검토">
-        <button className="stamp review" title="검토·분석으로 보내고 리스크·원가 분석 시작"
+        <button className="stamp review" title="검토·분석으로 보내고 원가·일정 분석 시작"
           onClick={() => { onUpdate(b.key, { status: "review" }); say("검토·분석으로 옮겨 분석을 시작합니다. 분석이 끝나면 참여·불참을 고르세요."); an.retry(false); }}>
           검토
         </button>
@@ -1253,7 +1255,7 @@ function Stamps({ bid: b, onUpdate, an, say, section }) {
               onUpdate(b.key, { status: on ? (id === "join" ? "review" : "new") : id });
               if (!on && id === "join") say("참여로 옮겼습니다.");
               if (!on && id === "review") {
-                say("검토·분석에 추가하고 리스크 분석을 시작합니다.");
+                say("검토·분석에 추가하고 분석을 시작합니다.");
                 an.retry(false);
               }
             }}

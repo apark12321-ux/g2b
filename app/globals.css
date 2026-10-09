@@ -955,3 +955,73 @@ ul.pc > li.ok .ci em { color: var(--pass); }
 .trash-list small.why { display: block; margin-top: 2px; color: var(--seal); font-weight: 600; }
 @media (prefers-color-scheme: dark) { .dlg-act .btn.primary { color: #0f141a; } }
 @media (max-width: 640px) { .dlg-back { align-items: flex-end; padding: 0; } .dlg { border-radius: 14px 14px 0 0; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); } }
+
+/* ═════════ GNB 고정: 상단 바 + 탭 줄은 스크롤해도 제자리 ═════════ */
+:root { --nav-h: calc(55px + env(safe-area-inset-top, 0px)); }
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 40;
+  height: var(--nav-h); box-sizing: border-box;
+  background: var(--paper); /* 반투명 대신 불투명: 아래 내용이 비치지 않게 */
+}
+body { padding-top: var(--nav-h); }
+/* 일정표·입찰 공고·검토·분석·참여 탭과 수집 상태 줄도 바로 아래에 고정 */
+.top {
+  position: sticky; top: var(--nav-h); z-index: 30;
+  background: var(--paper);
+  margin: 0 -20px 18px; padding: 10px 20px 8px;
+  border-bottom: 1px solid var(--line);
+}
+/* 고정 영역에 가려지지 않도록 이동 위치 보정 (리포트 보기·알림 링크) */
+.report, .bid, [id^="bid-"] { scroll-margin-top: calc(var(--nav-h) + 110px); }
+@media (max-width: 640px) {
+  .top { margin: 0 -10px 12px; padding: 8px 10px 6px; }
+  .report, .bid, [id^="bid-"] { scroll-margin-top: calc(var(--nav-h) + 96px); }
+}
+@media print { .nav, .top { position: static; } body { padding-top: 0; } }
+
+/* 업무 포인트 */
+.sum-box.work ul.wm { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.sum-box.work ul.wm li { flex: 1 1 110px; display: flex; align-items: baseline; gap: 7px; border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; background: var(--paper); }
+.sum-box.work ul.wm b { font-size: 19px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.sum-box.work ul.wm span { display: flex; flex-direction: column; font-size: 13px; font-weight: 600; line-height: 1.3; }
+.sum-box.work ul.wm small { font-weight: 400; font-size: 11px; color: var(--muted); }
+.wm-video b { color: var(--indigo); } .wm-isd b { color: #b7791f; } .wm-dev b, .wm-ops b, .wm-etc b { color: var(--muted); }
+.wm-fit { display: flex; flex-direction: column; gap: 1px; margin: 8px 0 0; padding: 8px 10px; border-radius: 6px; font-size: 13px; border-left: 4px solid var(--line); background: var(--paper); }
+.wm-fit span { color: var(--muted); font-size: 12.5px; }
+.wm-fit.f-good { border-left-color: #2e7d4f; } .wm-fit.f-good b { color: #2e7d4f; }
+.wm-fit.f-warn { border-left-color: #b7791f; } .wm-fit.f-warn b { color: #b7791f; }
+.wm-fit.f-bad { border-left-color: var(--seal); } .wm-fit.f-bad b { color: var(--seal); }
+@media (prefers-color-scheme: dark) {
+  .wm-fit.f-good b, .wm-video b { color: #5fbf86; } .wm-fit.f-warn b, .wm-isd b { color: #e0a84a; }
+  .wm-video b { color: var(--indigo); }
+}
+
+/* ───────── 일정표: 숫자 표 ───────── */
+.sc-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.sc-table th, .sc-table td { padding: 9px 8px; border-top: 1px solid var(--line); text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sc-table thead th { border-top: 0; border-bottom: 2px solid var(--ink); font-size: 12px; color: var(--muted); font-weight: 700; padding-bottom: 6px; }
+.sc-table td { color: var(--muted); }
+.sc-table .t-name { text-align: left; white-space: normal; width: 42%; }
+.sc-table .t-dday { width: 72px; }
+.sc-table .t-dday b { font-size: 17px; letter-spacing: -0.02em; color: var(--ink); }
+.sc-table tr.soon .t-dday b { color: var(--seal); }
+.sc-table .t-close b { color: var(--ink); font-size: 14px; }
+.sc-link { display: flex; align-items: baseline; gap: 6px; text-align: left; border: 0; background: none; padding: 0; cursor: pointer; color: var(--ink); font: inherit; }
+.sc-link .sc-t { font-weight: 600; line-height: 1.35; word-break: keep-all; }
+.sc-link:hover .sc-t { text-decoration: underline; text-underline-offset: 3px; }
+.sc-table .t-name small { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+@media (max-width: 640px) {
+  /* 휴대폰: 한 공고를 카드로 쌓아 보여 줌 */
+  .sc-table, .sc-table tbody, .sc-table tr, .sc-table td { display: block; width: auto; }
+  .sc-table thead { display: none; }
+  .sc-table tr { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; background: var(--paper); }
+  .sc-table td { border: 0; padding: 2px 0; text-align: left; white-space: normal; display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+  .sc-table td::before { content: attr(data-l); color: var(--muted); font-size: 12px; }
+  .sc-table td.t-name, .sc-table td.t-dday { display: block; }
+  .sc-table td.t-dday { float: right; margin-left: 8px; }
+  .sc-table td.t-name { width: auto; margin-bottom: 6px; }
+}
+
+.sc-st { flex: 0 0 auto; white-space: nowrap; }
+@media (max-width: 640px) { .sc-table td.t-dday { float: none; } .sc-table td.t-name { display: flex; align-items: baseline; gap: 8px; justify-content: space-between; } .sc-table td.t-name .sc-link { flex: 1 1 auto; min-width: 0; } }
+.sc-link .sc-t { display: block; } .sc-link .sc-t small { display: block; font-weight: 400; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
