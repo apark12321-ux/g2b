@@ -4,11 +4,16 @@ import { runCollect } from "@/lib/collect";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// GET: 자동 수집(cron-job.org) - 비밀값 필요
+// GET: 자동 수집 - 비밀값 필요
+// cron-job.org는 ?key=..., Vercel Cron·GitHub Actions는 Authorization: Bearer ... 로 보낸다
 export async function GET(req) {
   const secret = process.env.CRON_SECRET;
-  if (secret && req.nextUrl.searchParams.get("key") !== secret) {
-    return NextResponse.json({ error: "권한이 없습니다." }, { status: 401 });
+  if (secret) {
+    const byQuery = req.nextUrl.searchParams.get("key") === secret;
+    const byHeader = req.headers.get("authorization") === `Bearer ${secret}`;
+    if (!byQuery && !byHeader) {
+      return NextResponse.json({ error: "권한이 없습니다." }, { status: 401 });
+    }
   }
   // ?hours=72 : 최근 72시간을 다시 조회해 빠진 공고(정정공고 등)를 알림 없이 채움
   const h = Number(req.nextUrl.searchParams.get("hours") || 0);
