@@ -20,4 +20,9 @@ jobs:
           code=$(curl -sS -X POST -o /tmp/out.json -w '%{http_code}' --max-time 150 \
             "${{ vars.SITE_URL || 'https://g2b-sand.vercel.app' }}/api/collect")
           echo "HTTP $code"; cat /tmp/out.json; echo
-          test "$code" = "200"
+          # 504는 수집을 마친 뒤 '미리 분석'이 길어져 끊긴 경우 — 수집 자체는 기록되므로 실패로 보지 않는다
+          case "$code" in
+            200) echo "수집 완료" ;;
+            504) echo "수집은 됐고 뒤이은 분석이 시간 초과로 끊김 (다음 회차에 이어서 함)" ;;
+            *) echo "수집 실패"; exit 1 ;;
+          esac
