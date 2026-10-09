@@ -1074,3 +1074,9 @@ ol.jv-checks { margin: 0 0 10px; padding-left: 20px; font-size: 13.5px; line-hei
 @media print {
   .sc-block h3, .sc-table thead th, .filters { position: static; }
 }
+
+/* 수집 상태 — 밀려 있거나 다시 받아오는 중(경고 아님) */
+.run.warm { color: var(--muted); font-weight: 400; }
+.hb.busy { background: #b07d2b; box-shadow: 0 0 0 3px color-mix(in srgb, #b07d2b 20%, transparent); animation: hb-pulse 1.3s ease-in-out infinite; }
+@keyframes hb-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .hb.busy { animation: none; } }

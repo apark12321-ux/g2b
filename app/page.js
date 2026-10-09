@@ -119,6 +119,26 @@ export default function Home() {
     }
   };
 
+  // 자동 수집(cron-job.org)이 멈춰도 화면이 열려 있으면 스스로 다시 받아온다 — 수집 경로 이중화
+  const [healing, setHealing] = useState(false);
+  const [healErr, setHealErr] = useState("");
+  const healAt = useRef(0);    // 마지막 시도 시각 — 한 탭에서 5분에 한 번만
+  const healBusy = useRef(false);
+  useEffect(() => {
+    if (!data || collecting || healBusy.current) return;
+    const last = data.lastRun?.ran_at ? new Date(data.lastRun.ran_at).getTime() : 0;
+    if (Date.now() - last <= 15 * 60_000) return; // 15분 안쪽이면 그냥 둔다
+    if (Date.now() - healAt.current < 5 * 60_000) return;
+    healAt.current = Date.now();
+    healBusy.current = true;
+    setHealing(true);
+    (async () => {
+      try { await api("/api/collect", { method: "POST" }); setHealErr(""); }
+      catch (e) { setHealErr(e.message); }
+      finally { healBusy.current = false; setHealing(false); await load(); }
+    })();
+  }, [data, collecting, load]);
+
   const setAnalysis = (key, res) => {
     const { _files, ...analysis } = res || {};
     setData((d) => ({
@@ -291,15 +311,18 @@ export default function Home() {
             </button>
           </div>
           {data && (() => {
-            // 자동 수집 상태: 마지막 수집이 25분 넘게 지났으면 멈춘 것으로 봄
+            // 수집 상태. 밀려 있으면 화면이 알아서 다시 받아오므로(보조 경로) 겁주지 않는다.
             const mins = run ? Math.floor((Date.now() - new Date(run.ran_at)) / 60000) : null;
-            const stopped = mins === null || mins > 25;
+            const late = mins === null || mins > 25;
+            const broke = !!healErr || (!!run?.error && !healing); // 다시 받아오기까지 실패했을 때만 경고
+            const tone = broke ? "bad" : healing || late ? "warm" : "ok";
             return (
-              <div className={`run ${run?.error || stopped ? "bad" : "ok"}`}>
-                <span className={`hb ${stopped ? "off" : run?.error ? "err" : "on"}`} aria-hidden />
-                {mins === null ? "아직 수집 기록이 없습니다 — 자동 수집(cron-job.org) 설정을 확인하세요"
-                  : stopped ? `자동 수집이 ${mins >= 120 ? `${Math.floor(mins / 60)}시간` : `${mins}분`}째 멈춰 있습니다 (마지막 ${at(run.ran_at)}) — cron-job.org 작업을 확인하세요`
-                  : run.error ? `마지막 수집 실패 (${mins}분 전): ${run.error}`
+              <div className={`run ${tone}`}>
+                <span className={`hb ${broke ? "err" : healing ? "busy" : "on"}`} aria-hidden />
+                {healing ? "수집이 밀려 있어 지금 받아오는 중입니다"
+                  : broke ? `수집하지 못했습니다: ${healErr || run.error} — 아래 '수동 수집'을 눌러 보세요`
+                  : mins === null ? "첫 수집을 기다리는 중입니다"
+                  : late ? `마지막 수집 ${mins >= 120 ? `${Math.floor(mins / 60)}시간` : `${mins}분`} 전 — 화면을 열어 두면 곧 다시 받아옵니다`
                   : `자동 수집 정상 · ${mins}분 전 · 공고 ${run.fetched}건 확인, 새 알림 ${run.sent}건${run.failed ? `, 알림 실패 ${run.failed}건` : ""}`}
               </div>
             );
