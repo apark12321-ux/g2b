@@ -614,13 +614,12 @@ ul.pc ul.ev { margin: 3px 0 0 28px; padding: 0; list-style: none; font-size: 12p
 /* ───────── 일정표 */
 .schedule { display: grid; gap: 18px; }
 .sc-block { background: var(--sheet); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; }
-.sc-block h3 { margin: 0 0 10px; font-size: 16px; }
+.sc-block h3 { margin: 0; font-size: 16px; }
 .sc-block h3 small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
 .clash-txt { color: var(--seal); }
 .sc-empty { color: var(--muted); font-size: 13px; margin: 0; }
 .sc-scroll { overflow-x: auto; }
 .sc-grid { min-width: 880px; }
-.sc-head, .sc-row { display: grid; grid-template-columns: 260px 1fr; align-items: stretch; }
 .sc-days { display: grid; grid-template-columns: repeat(var(--days), 1fr); font-size: 10.5px; color: var(--muted); }
 .sc-days span { text-align: center; padding: 2px 0; border-left: 1px solid var(--line); }
 .sc-days span.we { background: color-mix(in srgb, var(--line) 35%, transparent); }
@@ -677,7 +676,6 @@ ul.pc ul.ev { margin: 3px 0 0 28px; padding: 0; list-style: none; font-size: 12p
 @media print { .rp-disclaimer { border-left-color: #999; } }
 /* 제안 일정: 입찰명이 전부 보이도록 */
 .sc-grid { min-width: 1080px; }
-.sc-head, .sc-row { grid-template-columns: 400px 1fr; }
 .sc-label .sc-t { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.35; word-break: keep-all; }
 .sc-label small { white-space: normal; overflow: visible; }
 .sc-label { padding: 8px 10px 8px 0; }
@@ -762,8 +760,6 @@ button, .btn, .mini, .stamp, .file, .org-tabs button { touch-action: manipulatio
   .sc-block { padding: 12px 10px; }
   .sc-scroll { overflow-x: visible; }
   .sc-grid { min-width: 0; }
-  .sc-head { grid-template-columns: 1fr; }
-  .sc-head .sc-corner { display: none; }
   .sc-row { grid-template-columns: 1fr; min-height: 0; padding-bottom: 6px; }
   .sc-label { padding: 8px 0 2px; }
   .sc-track { height: 34px; border-left: 0; }
@@ -1045,7 +1041,7 @@ ol.jv-checks { margin: 0 0 10px; padding-left: 20px; font-size: 13.5px; line-hei
 :root { --top-h: 0px; --sc-head-h: 0px; --stick: calc(var(--nav-h) + var(--top-h)); }
 
 /* 제안 일정 — 제목 줄 */
-.sc-block h3 {
+.sc-top {
   position: sticky; top: var(--stick); z-index: 12;
   background: var(--sheet);
   margin: -14px -16px 10px; padding: 14px 16px 8px;
@@ -1068,11 +1064,11 @@ ol.jv-checks { margin: 0 0 10px; padding-left: 20px; font-size: 13.5px; line-hei
 }
 
 @media (max-width: 640px) {
-  .sc-block h3 { margin: -12px -10px 10px; padding: 12px 10px 8px; }
+  .sc-top { margin: -12px -10px 10px; padding: 12px 10px 8px; }
   .filters { margin: 0 -10px 12px; padding: 8px 10px; }
 }
 @media print {
-  .sc-block h3, .sc-table thead th, .filters { position: static; }
+  .sc-top, .sc-table thead th, .filters { position: static; }
 }
 
 /* 수집 상태 — 밀려 있거나 다시 받아오는 중(경고 아님) */
@@ -1080,3 +1076,31 @@ ol.jv-checks { margin: 0 0 10px; padding-left: 20px; font-size: 13.5px; line-hei
 .hb.busy { background: #b07d2b; box-shadow: 0 0 0 3px color-mix(in srgb, #b07d2b 20%, transparent); animation: hb-pulse 1.3s ease-in-out infinite; }
 @keyframes hb-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .hb.busy { animation: none; } }
+
+/* ═════════ 공고 성격별 하위 분류 (영상 제작 / 교수설계＋영상 / 홍보영상 …) ═════════ */
+.type-tabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.filters .type-tabs { flex: 1 1 100%; }
+.sc-top .type-tabs { margin-top: 8px; }
+.type-tabs button {
+  border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+  border-radius: 999px; padding: 5px 11px; font-size: 13px; cursor: pointer;
+  white-space: nowrap; touch-action: manipulation;
+}
+.type-tabs button span { color: var(--muted); font-size: 12px; margin-left: 3px; font-variant-numeric: tabular-nums; }
+.type-tabs button:hover { border-color: var(--ink); }
+.type-tabs button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.type-tabs button.on span { color: #fff; opacity: .75; }
+.sc-top .type-tabs button { background: var(--sheet); }
+.sc-top .type-tabs button.on { background: var(--ink); }
+@media (max-width: 640px) {
+  .type-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; margin-bottom: -2px; }
+  .type-tabs::-webkit-scrollbar { display: none; }
+  .type-tabs button { flex: 0 0 auto; font-size: 12.5px; padding: 5px 10px; }
+}
+@media print { .type-tabs { display: none !important; } }
+
+/* 선택된 성격 칩: 다크 모드에선 배경(--ink)이 밝아지므로 글자를 어둡게 — 파일 끝에 두어 위 규칙을 덮는다 */
+@media (prefers-color-scheme: dark) {
+  .type-tabs button.on, .type-tabs button.on span { color: #0f141a; }
+  .type-tabs button.on span { opacity: .7; }
+}

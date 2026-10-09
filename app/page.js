@@ -8,6 +8,7 @@ import { workMix, prepayLevel, capacityFit } from "@/lib/work-mix";
 import { jointReview } from "@/lib/joint";
 import { estimateCost, COST, LABOR, UNIT, costModel } from "@/lib/cost";
 import { titleVideoOnly } from "@/lib/video-score";
+import { typeBuckets, bucketOf } from "@/lib/work-type";
 
 const TABS = [
   ["all", "전체"],
@@ -58,6 +59,7 @@ export default function Home() {
   const [tab, setTab] = useState("new"); // "new" 또는 맨 아래 링크로 여는 "pass"
   const [section, setSection] = useState("schedule"); // schedule: 일정표, bids: 입찰 공고, review: 검토·분석, join: 참여
   const [orgPick, setOrgPick] = useState(""); // 검토·분석 하위 분류: 공고기관
+  const [typePick, setTypePick] = useState("all"); // 하위 분류: 공고 성격(영상 제작·교수설계 등)
   const [trashOpen, setTrashOpen] = useState(false); // 휴지통 (불참 처리한 공고)
   const [refreshing, setRefreshing] = useState(false); // 기존 공고 분석 일괄 갱신
   const [rule, setRule] = useState("");
@@ -254,10 +256,14 @@ export default function Home() {
   const orgs = [...reviewList.reduce((m, b) => m.set(orgName(b), (m.get(orgName(b)) || 0) + 1), new Map())].sort((x, y) => y[1] - x[1]);
   // '전체' 없이 기관별로만: 선택이 없거나 사라졌으면 첫 기관
   const curOrg = orgs.some(([o]) => o === orgPick) ? orgPick : orgs[0]?.[0] || "";
-  const shown =
+  // 성격별(영상 제작 / 교수설계＋영상 / 홍보영상 …) 하위 분류 — 나눌 거리가 없으면 줄 자체가 안 나옴
+  const sectionList =
     section === "review" ? reviewList.filter((b) => orgName(b) === curOrg) :
     section === "join" ? joinList :
     bidsOnly.filter((b) => b.status === "new");
+  const buckets = typeBuckets(sectionList);
+  const curType = buckets.some((t) => t.key === typePick) ? typePick : "all";
+  const shown = curType === "all" ? sectionList : sectionList.filter((b) => bucketOf(b, buckets) === curType);
   const run = data?.lastRun;
 
   const anOf = (b) => ({ working: working === b.key, error: failed[b.key], started: started[b.key], retry: (force) => analyze(b.key, force) });
@@ -342,7 +348,19 @@ export default function Home() {
 
       {section !== "schedule" && <div className="filters">
         <input className="field search" type="search" placeholder="수집된 공고에서 찾기 (공고명·기관)" value={q} onChange={(e) => setQ(e.target.value)} />
-
+        {buckets.length > 0 && (
+          <div className="type-tabs" role="tablist" aria-label="공고 성격별">
+            <button role="tab" aria-selected={curType === "all"} className={curType === "all" ? "on" : ""} onClick={() => setTypePick("all")}>
+              전체 <span>{sectionList.length}</span>
+            </button>
+            {buckets.map((t) => (
+              <button key={t.key} role="tab" aria-selected={curType === t.key} className={curType === t.key ? "on" : ""}
+                onClick={() => setTypePick(t.key)} title={t.hint}>
+                {t.label} <span>{t.n}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>}
 
       {loadErr && <div className="empty"><strong>목록을 불러오지 못했습니다</strong>{loadErr}</div>}
@@ -681,16 +699,35 @@ const monthLabel = (d, edge) => {
 function ScheduleBoard({ bids, onOpen }) {
   const headRef = useHeightVar("--sc-head-h");
   const today = kstDay(Date.now());
-  const rows = bids
+  const [pick, setPick] = useState("all"); // 성격별 하위 분류
+  const live = bids
     .map((b) => ({ b, ms: milestonesOf(b) }))
     .filter(({ ms }) => ms.close && new Date(ms.close) >= today)
     .sort((x, y) => new Date(x.ms.close) - new Date(y.ms.close));
+  const buckets = typeBuckets(live.map((x) => x.b));
+  const cur = buckets.some((t) => t.key === pick) ? pick : "all";
+  const rows = cur === "all" ? live : live.filter(({ b }) => bucketOf(b, buckets) === cur);
   const sameDay = (x, y) => x && y && +kstDay(x) === +kstDay(y);
 
   return (
     <div className="schedule">
       <section className="sc-block">
-        <h3 ref={headRef}>제안 일정 <small>마감이 가까운 순 · 날짜는 공고문에 적힌 것만</small></h3>
+        <div ref={headRef} className="sc-top">
+          <h3>제안 일정 <small>마감이 가까운 순 · 날짜는 공고문에 적힌 것만</small></h3>
+          {buckets.length > 0 && (
+            <div className="type-tabs" role="tablist" aria-label="공고 성격별">
+              <button role="tab" aria-selected={cur === "all"} className={cur === "all" ? "on" : ""} onClick={() => setPick("all")}>
+                전체 <span>{live.length}</span>
+              </button>
+              {buckets.map((t) => (
+                <button key={t.key} role="tab" aria-selected={cur === t.key} className={cur === t.key ? "on" : ""}
+                  onClick={() => setPick(t.key)} title={t.hint}>
+                  {t.label} <span>{t.n}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {!rows.length ? <p className="sc-empty">다가오는 마감이 없습니다.</p> : (
           <table className="sc-table">
             <thead>
