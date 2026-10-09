@@ -1025,3 +1025,16 @@ body { padding-top: var(--nav-h); }
 .sc-st { flex: 0 0 auto; white-space: nowrap; }
 @media (max-width: 640px) { .sc-table td.t-dday { float: none; } .sc-table td.t-name { display: flex; align-items: baseline; gap: 8px; justify-content: space-between; } .sc-table td.t-name .sc-link { flex: 1 1 auto; min-width: 0; } }
 .sc-link .sc-t { display: block; } .sc-link .sc-t small { display: block; font-weight: 400; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+
+/* 공동사업 (공동수급) */
+.sum-box.jv ul.jv-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sum-box.jv ul.jv-list li { display: grid; grid-template-columns: 110px 1fr; gap: 2px 10px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+.sum-box.jv ul.jv-list b { font-size: 12.5px; color: var(--muted); }
+.sum-box.jv ul.jv-list span { font-size: 13.5px; font-weight: 600; }
+.sum-box.jv ul.jv-list small { grid-column: 2; font-size: 12px; color: var(--muted); font-weight: 400; line-height: 1.5; }
+.sum-box.jv ul.jv-list li.miss span { color: var(--pass); font-weight: 400; }
+.jv-note { margin: 0 0 8px; font-size: 12.5px; color: var(--muted); }
+ol.jv-checks { margin: 0 0 10px; padding-left: 20px; font-size: 13.5px; line-height: 1.7; }
+.jv-q { margin: 2px 0; font-size: 12px; color: var(--muted); }
+.jv-q b { color: var(--ink); margin-right: 4px; }
+@media (max-width: 640px) { .sum-box.jv ul.jv-list li { grid-template-columns: 1fr; } .sum-box.jv ul.jv-list small { grid-column: 1; } }

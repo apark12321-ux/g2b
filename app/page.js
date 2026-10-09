@@ -5,6 +5,7 @@ import { at, dday, money, when } from "@/components/format";
 import { winScore, reviewRisks, BOILERPLATE } from "@/lib/score";
 import { cashNeed } from "@/lib/payment";
 import { workMix, prepayLevel, capacityFit } from "@/lib/work-mix";
+import { jointReview } from "@/lib/joint";
 import { estimateCost, COST, LABOR, UNIT, costModel } from "@/lib/cost";
 import { titleVideoOnly } from "@/lib/video-score";
 
@@ -143,7 +144,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 13 || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 14 || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -901,6 +902,30 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                     </div>
                   );
                 })()}
+                {(() => {
+                  const j = a.joint || jointReview("", b, a);
+                  if (!j) return null;
+                  if (!j.applies) return (
+                    <div className="sum-box jv">
+                      <h4>공동수급 <small>단독 참여만 가능</small></h4>
+                      <p className="jv-note">{j.note}</p>
+                    </div>
+                  );
+                  return (
+                    <div className="sum-box jv">
+                      <h4>공동사업이라면 <small>우리 몫·경계부터 — 여기서 틀어지면 사업이 엎어집니다</small></h4>
+                      <ul className="jv-list">
+                        {j.items.map((x, i) => (
+                          <li key={i} className={x.missing ? "miss" : ""}>
+                            <b>{x.label}</b>
+                            <span>{x.value}</span>
+                            {x.note && <small>{x.note}</small>}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
                 {top.length > 0 && (
                   <div className="sum-box">
                     <h4>걸리는 점 <small>“문서” = 공고문에 적힌 내용 · “추정” = 원가·일정 계산 결과</small></h4>
@@ -1097,8 +1122,17 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
 
 
 
+          {a.joint?.applies && a.joint.checks?.length > 0 && (
+            <details className="rp-fold"><summary>공동수급 협정 전 합의할 것 <small>{a.joint.checks.length}가지</small></summary>
+              <p className="jv-note">{a.joint.note}</p>
+              <ol className="jv-checks">{a.joint.checks.map((c, i) => <li key={i}>{c}</li>)}</ol>
+            {a.joint.items.filter((x) => x.quote).map((x, i) => (
+                <p key={i} className="jv-q"><b>{x.label}</b> “{x.quote}”</p>
+              ))}
+            </details>
+          )}
           {risks.length > 0 && (
-            <details className="rp-fold"><summary>걸리는 점 전체 <small>{risks.length}건</small></summary>
+          <details className="rp-fold"><summary>걸리는 점 전체 <small>{risks.length}건</small></summary>
               
               <table className="rp-risk">
                 <thead><tr><th>수준</th><th>항목</th><th>근거</th></tr></thead>
