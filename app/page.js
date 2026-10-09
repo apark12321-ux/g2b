@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/components/api";
 import { at, dday, money, when } from "@/components/format";
 import { winScore, reviewRisks, BOILERPLATE } from "@/lib/score";
@@ -35,7 +35,24 @@ const clientOf = (b) => {
   return org || dem || "기관 미상";
 };
 
+/** 요소의 높이를 CSS 변수로 올려 둔다 — 고정(sticky) 영역이 서로 겹치지 않게 쌓기 위함 */
+function useHeightVar(name) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const set = () => document.documentElement.style.setProperty(name, `${Math.round(el.getBoundingClientRect().height)}px`);
+    set();
+    let ro;
+    if (typeof ResizeObserver !== "undefined") { ro = new ResizeObserver(set); ro.observe(el); }
+    window.addEventListener("resize", set);
+    return () => { if (ro) ro.disconnect(); window.removeEventListener("resize", set); document.documentElement.style.removeProperty(name); };
+  }, [name]);
+  return ref;
+}
+
 export default function Home() {
+  const topRef = useHeightVar("--top-h");
   const [data, setData] = useState(null);
   const [loadErr, setLoadErr] = useState("");
   const [tab, setTab] = useState("new"); // "new" 또는 맨 아래 링크로 여는 "pass"
@@ -257,7 +274,7 @@ export default function Home() {
 
   return (
     <>
-      <div className="top">
+      <div className="top" ref={topRef}>
         <div>
           <div className="sections" role="tablist">
             <button role="tab" aria-selected={section === "schedule"} className={section === "schedule" ? "on" : ""} onClick={() => setSection("schedule")}>
@@ -301,7 +318,7 @@ export default function Home() {
       )}
 
       {section !== "schedule" && <div className="filters">
-        <input className="field search" type="search" placeholder="모인 공고에서 찾기 (공고명·기관)" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="field search" type="search" placeholder="수집된 공고에서 찾기 (공고명·기관)" value={q} onChange={(e) => setQ(e.target.value)} />
 
       </div>}
 
@@ -317,7 +334,7 @@ export default function Home() {
           ) : data.bids.length ? (
             <><strong>조건에 맞는 공고가 없습니다</strong>필터를 바꾸거나 마감 지난 공고도 표시해 보세요.</>
           ) : (
-            <><strong>아직 모인 공고가 없습니다</strong>10분마다 자동으로 수집합니다. 잠시 후 다시 확인해 주세요.</>
+            <><strong>아직 수집된 공고가 없습니다</strong>10분마다 자동으로 수집합니다. 잠시 후 다시 확인해 주세요.</>
           )}
         </div>
       )}
@@ -639,6 +656,7 @@ const monthLabel = (d, edge) => {
 };
 
 function ScheduleBoard({ bids, onOpen }) {
+  const headRef = useHeightVar("--sc-head-h");
   const today = kstDay(Date.now());
   const rows = bids
     .map((b) => ({ b, ms: milestonesOf(b) }))
@@ -649,7 +667,7 @@ function ScheduleBoard({ bids, onOpen }) {
   return (
     <div className="schedule">
       <section className="sc-block">
-        <h3>제안 일정 <small>마감이 가까운 순 · 날짜는 공고문에 적힌 것만</small></h3>
+        <h3 ref={headRef}>제안 일정 <small>마감이 가까운 순 · 날짜는 공고문에 적힌 것만</small></h3>
         {!rows.length ? <p className="sc-empty">다가오는 마감이 없습니다.</p> : (
           <table className="sc-table">
             <thead>

@@ -1038,3 +1038,39 @@ ol.jv-checks { margin: 0 0 10px; padding-left: 20px; font-size: 13.5px; line-hei
 .jv-q { margin: 2px 0; font-size: 12px; color: var(--muted); }
 .jv-q b { color: var(--ink); margin-right: 4px; }
 @media (max-width: 640px) { .sum-box.jv ul.jv-list li { grid-template-columns: 1fr; } .sum-box.jv ul.jv-list small { grid-column: 1; } }
+
+/* ═════════ 세로 스크롤해도 고정: 제안 일정 머리줄 · 검색 줄 ═════════
+   --top-h : 탭 줄 + 수집 상태 줄 높이 (page.js에서 실측해 넣음)
+   --sc-head-h : '제안 일정' 제목 줄 높이 */
+:root { --top-h: 0px; --sc-head-h: 0px; --stick: calc(var(--nav-h) + var(--top-h)); }
+
+/* 제안 일정 — 제목 줄 */
+.sc-block h3 {
+  position: sticky; top: var(--stick); z-index: 12;
+  background: var(--sheet);
+  margin: -14px -16px 10px; padding: 14px 16px 8px;
+  border-bottom: 1px solid var(--line);
+}
+/* 제안 일정 — 표 머리줄 (제목 줄 바로 아래)
+   머리줄이 본문 줄에 가리지 않도록 테두리 합치기를 끄고 칸마다 선을 그림 */
+.sc-table { border-collapse: separate; border-spacing: 0; }
+.sc-table thead th {
+  position: sticky; top: calc(var(--stick) + var(--sc-head-h)); z-index: 11;
+  background: var(--sheet);
+}
+.sc-table tbody tr:first-child td { border-top: 0; }
+/* 검색 줄 (수집된 공고에서 찾기) */
+.filters {
+  position: sticky; top: var(--stick); z-index: 12;
+  background: var(--paper);
+  margin: 0 -20px 14px; padding: 10px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+@media (max-width: 640px) {
+  .sc-block h3 { margin: -12px -10px 10px; padding: 12px 10px 8px; }
+  .filters { margin: 0 -10px 12px; padding: 8px 10px; }
+}
+@media print {
+  .sc-block h3, .sc-table thead th, .filters { position: static; }
+}
