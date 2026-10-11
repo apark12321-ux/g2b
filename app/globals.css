@@ -1104,3 +1104,19 @@ ol.jv-checks { margin: 0 0 10px; padding-left: 20px; font-size: 13.5px; line-hei
   .type-tabs button.on, .type-tabs button.on span { color: #0f141a; }
   .type-tabs button.on span { opacity: .7; }
 }
+
+/* 과업 구성 근거 · 후미디어 기준 판단 (사실과 판단을 눈으로도 나눔) */
+.wm-none { margin: 0; font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+.wm-none b { color: var(--ink); }
+details.wm-why { margin-top: 8px; }
+details.wm-why summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
+details.wm-why ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+details.wm-why li { font-size: 12.5px; line-height: 1.6; }
+details.wm-why li b { display: block; color: var(--ink); margin-bottom: 2px; }
+details.wm-why li span { display: block; color: var(--muted); padding-left: 10px; border-left: 2px solid var(--line); }
+details.wm-why > p { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+.sum-box.fitbox ul.fit-items { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: 12.5px; }
+.sum-box.fitbox ul.fit-items li { padding-left: 14px; position: relative; color: var(--muted); line-height: 1.6; }
+.sum-box.fitbox ul.fit-items li::before { content: "+"; position: absolute; left: 0; color: #2e7d4f; font-weight: 700; }
+.sum-box.fitbox ul.fit-items li.bad::before { content: "−"; color: var(--seal); }
+.sum-box.work ul.wm b { white-space: nowrap; }

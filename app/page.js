@@ -193,7 +193,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 14 || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 15 || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -971,23 +971,52 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   const fit = a.capacity || capacityFit(wm, pre);
                   if (!wm) return null;
                   return (
-                    <div className="sum-box work">
-                      <h4>업무 포인트 <small>{wm.basis}</small></h4>
-                      <ul className="wm">
-                        {wm.mix.map((x) => (
-                          <li key={x.key} className={`wm-${x.key}`}>
-                            <b>{x.pct}%</b>
-                            <span>{x.label}<small>{x.hint}</small></span>
-                          </li>
-                        ))}
-                      </ul>
+                    <>
+                      {/* ① 공고가 요구하는 일 — 문서에 적힌 사실만 */}
+                      <div className="sum-box work">
+                        <h4>과업 구성 <small>{wm.basis}</small></h4>
+                        {wm.level === "제목" ? (
+                          <p className="wm-none">
+                            공고문을 읽지 못해 비율을 내지 않았습니다. 공고명으로 보면 <b>{wm.mix.map((x) => x.label).join(" · ")}</b> 쪽입니다.
+                          </p>
+                        ) : (
+                          <ul className="wm">
+                            {wm.mix.map((x) => (
+                              <li key={x.key} className={`wm-${x.key}`}>
+                                <b>{x.pct}%</b>
+                                <span>{x.label}<small>{x.hint}</small></span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {wm.mix.some((x) => x.why?.length) && (
+                          <details className="wm-why">
+                            <summary>이 비율의 근거</summary>
+                            <ul>
+                              {wm.mix.filter((x) => x.why?.length).map((x) => (
+                                <li key={x.key}><b>{x.label}</b>{x.why.map((w, i) => <span key={i}>{w}</span>)}</li>
+                              ))}
+                            </ul>
+                            {!wm.exact && <p>분량이 적혀 있지 않아 과업 항목 수로만 나눈 값입니다. 제안요청서에서 직접 확인하세요.</p>}
+                          </details>
+                        )}
+                      </div>
+                      {/* ② 위 사실을 우리 사정에 대입한 판단 — 공고 분석과 섞지 않는다 */}
                       {fit && (
-                        <p className={`wm-fit f-${fit.fit === "좋음" ? "good" : fit.fit === "보통" ? "warn" : "bad"}`}>
-                          <b>{fit.headline}</b>
-                          <span>선투자 {pre.level}{pre.level === "가능" && pre.pct ? ` (선금 ${pre.pct}%)` : ""} — {fit.note}</span>
-                        </p>
+                        <div className="sum-box fitbox">
+                          <h4>후미디어 기준 판단 <small>위 과업 구성을 우리 인력·자금 사정에 대입한 것</small></h4>
+                          <p className={`wm-fit f-${fit.fit === "좋음" ? "good" : fit.fit === "보통" ? "warn" : "bad"}`}>
+                            <b>{fit.headline}</b>
+                            <span>선투자 {pre.level}{pre.level === "가능" && pre.pct ? ` (선금 ${pre.pct}%)` : ""} — {fit.note}</span>
+                          </p>
+                          {fit.items?.length > 0 && (
+                            <ul className="fit-items">
+                              {fit.items.map((x, i) => <li key={i} className={x.n >= 0 ? "ok" : "bad"}>{x.why}</li>)}
+                            </ul>
+                          )}
+                        </div>
                       )}
-                    </div>
+                    </>
                   );
                 })()}
                 {(() => {
