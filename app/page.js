@@ -92,10 +92,13 @@ export default function Home() {
 
   const load = useCallback(async () => {
     try {
-      setData(await api("/api/bids"));
+      const d = await api("/api/bids");
+      setData(d);
       setLoadErr("");
+      return d;
     } catch (e) {
       setLoadErr(e.message);
+      return null;
     }
   }, []);
 
@@ -135,9 +138,16 @@ export default function Home() {
     healBusy.current = true;
     setHealing(true);
     (async () => {
-      try { await api("/api/collect", { method: "POST" }); setHealErr(""); }
-      catch (e) { setHealErr(e.message); }
-      finally { healBusy.current = false; setHealing(false); await load(); }
+      let err = "";
+      try { await api("/api/collect", { method: "POST" }); }
+      catch (e) { err = e.message; }
+      // 응답이 늦어 끊겨도(504 등) 서버에서는 수집이 끝났을 수 있다.
+      // 다시 불러와 '마지막 수집' 시각이 실제로 앞당겨졌는지로 판단한다.
+      const fresh = await load();
+      const ranAt = fresh?.lastRun?.ran_at ? new Date(fresh.lastRun.ran_at).getTime() : 0;
+      setHealErr(ranAt > last ? "" : err);
+      healBusy.current = false;
+      setHealing(false);
     })();
   }, [data, collecting, load]);
 
