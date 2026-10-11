@@ -4,8 +4,10 @@ name: collect
 
 on:
   schedule:
-    - cron: "*/10 * * * *"   # 10분마다 (깃허브 사정에 따라 몇 분 늦을 수 있음)
-  workflow_dispatch:          # 저장소 Actions 탭에서 손으로도 실행 가능
+    # 깃허브는 */10 같은 잦은 주기를 그대로 지켜 주지 않는다(몇 시간씩 건너뜀).
+    # 분을 흩어 적어 두면 그나마 자주 뜬다. 정확한 10분 간격은 cron-job.org 몫.
+    - cron: "3,13,23,33,43,53 * * * *"
+  workflow_dispatch:
 
 concurrency:
   group: collect
@@ -15,14 +17,20 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     steps:
-      - name: 수집 호출
+      - name: 공고 수집
         run: |
-          code=$(curl -sS -X POST -o /tmp/out.json -w '%{http_code}' --max-time 150 \
+          code=$(curl -sS -X POST -o /tmp/out.json -w '%{http_code}' --max-time 120 \
             "${{ vars.SITE_URL || 'https://g2b-sand.vercel.app' }}/api/collect")
           echo "HTTP $code"; cat /tmp/out.json; echo
-          # 504는 수집을 마친 뒤 '미리 분석'이 길어져 끊긴 경우 — 수집 자체는 기록되므로 실패로 보지 않는다
-          case "$code" in
-            200) echo "수집 완료" ;;
-            504) echo "수집은 됐고 뒤이은 분석이 시간 초과로 끊김 (다음 회차에 이어서 함)" ;;
-            *) echo "수집 실패"; exit 1 ;;
-          esac
+          test "$code" = "200"
+
+      - name: 새 공고 미리 분석 (한 건씩, 최대 3건)
+        continue-on-error: true   # 분석이 밀려도 수집은 이미 끝난 것이므로 실패로 보지 않는다
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -sS -X POST -o /tmp/a.json -w '%{http_code}' --max-time 90 \
+              "${{ vars.SITE_URL || 'https://g2b-sand.vercel.app' }}/api/analyze-pending")
+            echo "[$i] HTTP $code"; cat /tmp/a.json; echo
+            [ "$code" = "200" ] || break
+            grep -q '"left":0' /tmp/a.json && { echo "남은 공고 없음"; break; }
+          done
