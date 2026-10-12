@@ -52,6 +52,24 @@ function useHeightVar(name) {
   return ref;
 }
 
+/**
+ * 탭·분류를 바꾼 뒤 스크롤 위치 맞추기.
+ * 이미 고정 줄이 붙을 만큼 내려와 있으면, 고정 줄이 막 붙는 위치로 되돌려 목록 첫 줄이 고정 줄 바로 아래에 오게 한다.
+ * mark: 고정 줄 바로 앞에 둔 높이 0 표식, sel: 고정 줄
+ */
+function snapUnder(mark, sel) {
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const m = typeof mark === "string" ? document.querySelector(mark) : mark;
+    const st = document.querySelector(sel);
+    if (!m || !st) return;
+    const cs = getComputedStyle(st);
+    const stickTop = parseFloat(cs.top) || 0, gap = parseFloat(cs.marginTop) || 0;
+    const y = Math.round(m.getBoundingClientRect().top + window.scrollY + gap - stickTop);
+    if (window.scrollY > y) window.scrollTo({ top: Math.max(0, y), behavior: "auto" });
+  }));
+}
+const toTop = () => requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+
 /** 검색·하위 분류 줄 — 높이를 --filters-h 로 올려, 공고로 이동할 때 이 줄 아래에 멈추게 한다 */
 function StickyFilters({ children }) {
   const ref = useHeightVar("--filters-h");
@@ -319,16 +337,16 @@ export default function Home() {
       <div className="top" ref={topRef}>
         <div>
           <div className="sections" role="tablist">
-            <button role="tab" aria-selected={section === "schedule"} className={section === "schedule" ? "on" : ""} onClick={() => setSection("schedule")}>
+            <button role="tab" aria-selected={section === "schedule"} className={section === "schedule" ? "on" : ""} onClick={() => { setSection("schedule"); toTop(); }}>
               일정표
             </button>
-            <button role="tab" aria-selected={section === "bids"} className={section === "bids" ? "on" : ""} onClick={() => setSection("bids")}>
+            <button role="tab" aria-selected={section === "bids"} className={section === "bids" ? "on" : ""} onClick={() => { setSection("bids"); toTop(); }}>
               입찰 공고
             </button>
-            <button role="tab" aria-selected={section === "review"} className={section === "review" ? "on" : ""} onClick={() => setSection("review")}>
+            <button role="tab" aria-selected={section === "review"} className={section === "review" ? "on" : ""} onClick={() => { setSection("review"); toTop(); }}>
               검토·분석{reviewList.length > 0 && <span className="sec-n">{reviewList.length}</span>}
             </button>
-            <button role="tab" aria-selected={section === "join"} className={section === "join" ? "on" : ""} onClick={() => setSection("join")}>
+            <button role="tab" aria-selected={section === "join"} className={section === "join" ? "on" : ""} onClick={() => { setSection("join"); toTop(); }}>
               참여{joinList.length > 0 && <span className="sec-n join">{joinList.length}</span>}
             </button>
           </div>
@@ -357,18 +375,19 @@ export default function Home() {
       {section === "review" && orgs.length > 0 && (
         <div className="org-tabs" role="tablist" aria-label="공고기관별">
           {orgs.map(([o, n]) => (
-            <button key={o} className={curOrg === o ? "on" : ""} onClick={() => setOrgPick(o)}>{o} <span>{n}</span></button>
+            <button key={o} className={curOrg === o ? "on" : ""} onClick={() => { setOrgPick(o); snapUnder("#filters-mark", ".filters"); }}>{o} <span>{n}</span></button>
           ))}
         </div>
       )}
 
+      {section !== "schedule" && <div id="filters-mark" aria-hidden="true" />}
       {section !== "schedule" && <StickyFilters>
         <input className="field search" type="search" placeholder="수집된 공고에서 찾기 (공고명·기관)" value={q} onChange={(e) => setQ(e.target.value)} />
         {buckets.length > 0 && (
           <div className="type-tabs" role="tablist" aria-label="공고 성격별">
             {buckets.map((t) => (
               <button key={t.key} role="tab" aria-selected={curType === t.key} className={curType === t.key ? "on" : ""}
-                onClick={() => setTypePick(t.key)} title={t.hint}>
+                onClick={() => { setTypePick(t.key); snapUnder("#filters-mark", ".filters"); }} title={t.hint}>
                 {t.label} <span>{t.n}</span>
               </button>
             ))}
@@ -725,13 +744,14 @@ function ScheduleBoard({ bids, onOpen }) {
   return (
     <div className="schedule">
       <section className="sc-block">
+        <div id="sc-mark" aria-hidden="true" />
         <div ref={headRef} className="sc-top">
           <h3>제안 일정 <small>마감이 가까운 순 · 날짜는 공고문에 적힌 것만</small></h3>
           {buckets.length > 0 && (
             <div className="type-tabs" role="tablist" aria-label="공고 성격별">
               {buckets.map((t) => (
                 <button key={t.key} role="tab" aria-selected={cur === t.key} className={cur === t.key ? "on" : ""}
-                  onClick={() => setPick(t.key)} title={t.hint}>
+                  onClick={() => { setPick(t.key); snapUnder("#sc-mark", ".sc-top"); }} title={t.hint}>
                   {t.label} <span>{t.n}</span>
                 </button>
               ))}
