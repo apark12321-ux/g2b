@@ -193,7 +193,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 17 || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 18 || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -272,7 +272,7 @@ export default function Home() {
     section === "join" ? joinList :
     bidsOnly.filter((b) => b.status === "new");
   const buckets = typeBuckets(sectionList);
-  const curType = buckets.some((t) => t.key === typePick) ? typePick : "all";
+  const curType = buckets.some((t) => t.key === typePick) ? typePick : (buckets[0]?.key ?? "all");
   const shown = curType === "all" ? sectionList : sectionList.filter((b) => bucketOf(b, buckets) === curType);
   const run = data?.lastRun;
 
@@ -360,9 +360,6 @@ export default function Home() {
         <input className="field search" type="search" placeholder="수집된 공고에서 찾기 (공고명·기관)" value={q} onChange={(e) => setQ(e.target.value)} />
         {buckets.length > 0 && (
           <div className="type-tabs" role="tablist" aria-label="공고 성격별">
-            <button role="tab" aria-selected={curType === "all"} className={curType === "all" ? "on" : ""} onClick={() => setTypePick("all")}>
-              전체 <span>{sectionList.length}</span>
-            </button>
             {buckets.map((t) => (
               <button key={t.key} role="tab" aria-selected={curType === t.key} className={curType === t.key ? "on" : ""}
                 onClick={() => setTypePick(t.key)} title={t.hint}>
@@ -715,7 +712,7 @@ function ScheduleBoard({ bids, onOpen }) {
     .filter(({ ms }) => ms.close && new Date(ms.close) >= today)
     .sort((x, y) => new Date(x.ms.close) - new Date(y.ms.close));
   const buckets = typeBuckets(live.map((x) => x.b));
-  const cur = buckets.some((t) => t.key === pick) ? pick : "all";
+  const cur = buckets.some((t) => t.key === pick) ? pick : (buckets[0]?.key ?? "all");
   const rows = cur === "all" ? live : live.filter(({ b }) => bucketOf(b, buckets) === cur);
   const sameDay = (x, y) => x && y && +kstDay(x) === +kstDay(y);
 
@@ -726,9 +723,6 @@ function ScheduleBoard({ bids, onOpen }) {
           <h3>제안 일정 <small>마감이 가까운 순 · 날짜는 공고문에 적힌 것만</small></h3>
           {buckets.length > 0 && (
             <div className="type-tabs" role="tablist" aria-label="공고 성격별">
-              <button role="tab" aria-selected={cur === "all"} className={cur === "all" ? "on" : ""} onClick={() => setPick("all")}>
-                전체 <span>{live.length}</span>
-              </button>
               {buckets.map((t) => (
                 <button key={t.key} role="tab" aria-selected={cur === t.key} className={cur === t.key ? "on" : ""}
                   onClick={() => setPick(t.key)} title={t.hint}>
@@ -1088,6 +1082,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                         : rec.kind === "배점" ? "평가 배점 — 자격 제한은 아님"
                         : rec.kind === "없음" ? "실적 제한 없음 — 문서에 명시"
                         : rec.kind === "자격아님" ? "참가 자격 제한 없음 — 평가 반영은 미확인"
+                        : rec.kind === "제안서" ? "제안서 기재 — 정성평가 참고"
                         : "자격인지 배점인지 문서에 불분명"}</small></h4>
                       <p className="rec-note">{rec.note}</p>
                       <ul className="rec-list">
