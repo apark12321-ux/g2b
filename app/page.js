@@ -193,7 +193,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 16 || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 17 || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -1068,6 +1068,35 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                     ))}</ul>
                   </div>
                 )}
+                {/* 유사용역 실적 — 못 채우면 입찰 자체가 막히므로 조건을 하나씩 */}
+                {(() => {
+                  const rec = a.record;
+                  if (!rec) return (
+                    <div className="sum-box rec">
+                      <h4>유사용역 실적 <small>읽은 문서에서 실적 조건을 찾지 못함</small></h4>
+                      <p className="rec-note">공고문·제안요청서에 실적 요건이 적혀 있는지 원문에서 직접 확인하세요. 참가 자격일 수 있습니다.</p>
+                    </div>
+                  );
+                  const tone = rec.kind === "자격" || rec.kind === "둘다" ? "bad" : rec.kind === "배점" ? "warn" : "warn";
+                  return (
+                    <div className={`sum-box rec r-${tone}`}>
+                      <h4>유사용역 실적 <small>{rec.kind === "자격" ? "참가 자격 — 못 채우면 입찰 불가"
+                        : rec.kind === "둘다" ? "참가 자격 + 평가 배점"
+                        : rec.kind === "배점" ? "평가 배점 — 자격 제한은 아님"
+                        : "자격인지 배점인지 문서에 불분명"}</small></h4>
+                      <p className="rec-note">{rec.note}</p>
+                      <ul className="rec-list">
+                        {rec.rows.map((r, i) => (
+                          <li key={i}>
+                            <b>{r.label}</b>
+                            <span>{r.value}</span>
+                            <small>“{r.quote}” <em>{r.source}</em></small>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
                 <p className="rp-disclaimer">자동 분석한 <b>검토 참고 자료</b>입니다. 추정값이 포함되어 있으니 원문과 함께 최종 확인 후 결정하세요.</p>
               </section>
             );
