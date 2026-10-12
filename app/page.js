@@ -1073,16 +1073,21 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   const rec = a.record;
                   if (!rec) return (
                     <div className="sum-box rec">
-                      <h4>유사용역 실적 <small>읽은 문서에서 실적 조건을 찾지 못함</small></h4>
-                      <p className="rec-note">공고문·제안요청서에 실적 요건이 적혀 있는지 원문에서 직접 확인하세요. 참가 자격일 수 있습니다.</p>
+                      <h4>유사용역 실적 <small>{(a.sources || []).length ? `읽은 문서 ${(a.sources || []).length}개에 실적 관련 문구 없음` : "문서를 읽지 못함"}</small></h4>
+                      <p className="rec-note">{(a.sources || []).length
+                        ? "공고문·제안요청서 어디에도 '실적' 조건이 나오지 않습니다. 첨부 외 별도 공고(입찰공고문 본문)가 있으면 그쪽을 확인하세요."
+                        : "첨부 문서를 읽지 못해 실적 조건을 확인할 수 없습니다. 공고 원문에서 직접 확인하세요."}</p>
                     </div>
                   );
-                  const tone = rec.kind === "자격" || rec.kind === "둘다" ? "bad" : rec.kind === "배점" ? "warn" : "warn";
+                  const tone = rec.kind === "자격" || rec.kind === "둘다" ? "bad"
+                    : rec.kind === "없음" || rec.kind === "자격아님" ? "good" : "warn";
                   return (
                     <div className={`sum-box rec r-${tone}`}>
                       <h4>유사용역 실적 <small>{rec.kind === "자격" ? "참가 자격 — 못 채우면 입찰 불가"
                         : rec.kind === "둘다" ? "참가 자격 + 평가 배점"
                         : rec.kind === "배점" ? "평가 배점 — 자격 제한은 아님"
+                        : rec.kind === "없음" ? "실적 제한 없음 — 문서에 명시"
+                        : rec.kind === "자격아님" ? "참가 자격 제한 없음 — 평가 반영은 미확인"
                         : "자격인지 배점인지 문서에 불분명"}</small></h4>
                       <p className="rec-note">{rec.note}</p>
                       <ul className="rec-list">
@@ -1094,6 +1099,12 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                           </li>
                         ))}
                       </ul>
+                      {rec.lines?.length > 0 && (
+                        <details className="wm-why">
+                          <summary>문서에 나온 실적 관련 문장 전체 ({rec.lines.length})</summary>
+                          <ul>{rec.lines.map((l, i) => <li key={i}><span>{l.quote}</span><small>{l.source}</small></li>)}</ul>
+                        </details>
+                      )}
                     </div>
                   );
                 })()}
