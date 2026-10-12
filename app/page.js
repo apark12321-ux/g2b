@@ -52,6 +52,12 @@ function useHeightVar(name) {
   return ref;
 }
 
+/** 검색·하위 분류 줄 — 높이를 --filters-h 로 올려, 공고로 이동할 때 이 줄 아래에 멈추게 한다 */
+function StickyFilters({ children }) {
+  const ref = useHeightVar("--filters-h");
+  return <div ref={ref} className="filters">{children}</div>;
+}
+
 export default function Home() {
   const topRef = useHeightVar("--top-h");
   const [data, setData] = useState(null);
@@ -356,7 +362,7 @@ export default function Home() {
         </div>
       )}
 
-      {section !== "schedule" && <div className="filters">
+      {section !== "schedule" && <StickyFilters>
         <input className="field search" type="search" placeholder="수집된 공고에서 찾기 (공고명·기관)" value={q} onChange={(e) => setQ(e.target.value)} />
         {buckets.length > 0 && (
           <div className="type-tabs" role="tablist" aria-label="공고 성격별">
@@ -368,7 +374,7 @@ export default function Home() {
             ))}
           </div>
         )}
-      </div>}
+      </StickyFilters>}
 
       {loadErr && <div className="empty"><strong>목록을 불러오지 못했습니다</strong>{loadErr}</div>}
       {!data && !loadErr && <div className="empty">불러오는 중</div>}

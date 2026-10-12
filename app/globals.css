@@ -313,7 +313,7 @@ textarea.full { min-height: 64px; resize: vertical; }
 @media (max-width: 640px) { .file .fname { max-width: none; } }
 
 /* 알림에서 연 공고 강조 */
-.bid.focused { border-color: var(--indigo); box-shadow: 0 0 0 2px color-mix(in srgb, var(--indigo) 25%, transparent); scroll-margin-top: 70px; }
+.bid.focused { border-color: var(--indigo); box-shadow: 0 0 0 2px color-mix(in srgb, var(--indigo) 25%, transparent); }
 .fit-basic { background: var(--muted); }
 .an-note { font-size: 12px; color: var(--muted); margin-bottom: 4px !important; }
 
@@ -1136,3 +1136,7 @@ ul.rec-list small em { font-style: normal; opacity: .75; }
 .sum-box.rec.r-good { border-left: 3px solid #2e7d4f; }
 .sum-box.rec.r-good .rec-note { color: #2e7d4f; }
 @media (prefers-color-scheme: dark) { .sum-box.rec.r-good .rec-note { color: #6fcf97; } .sum-box.rec.r-good { border-left-color: #6fcf97; } }
+
+/* 공고로 이동할 때: 고정된 상단 바 + 탭 줄 + 검색·분류 줄 바로 아래에 제목이 오게 (모바일에서 제목이 가려지던 문제) */
+:root { --filters-h: 0px; }
+.report, .bid, .bid.focused, [id^="bid-"] { scroll-margin-top: calc(var(--stick) + var(--filters-h) + 12px); }
