@@ -414,9 +414,6 @@ textarea.full { min-height: 64px; resize: vertical; }
 .brand-seal { width: 34px; height: 34px; font-size: 15px; }
 .brand-co { font-size: 12px; color: var(--muted); white-space: nowrap; }
 @media (max-width: 480px) { .brand-name { font-size: 18px; } .brand-seal { width: 30px; height: 30px; } }
-.brand-logo { height: 18px; width: auto; display: block; }
-@media (prefers-color-scheme: dark) { .brand-logo { filter: brightness(0) invert(1); opacity: .8; } }
-@media (max-width: 480px) { .brand-logo { height: 16px; } }
 .toast-undo { margin-left: 10px; border: 0; background: none; color: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .push-box { padding: 8px 0; border-top: 1px dashed var(--line); }
 .push-box:first-of-type { border-top: 0; }
@@ -778,7 +775,6 @@ button, .btn, .mini, .stamp, .file, .org-tabs button { touch-action: manipulatio
 @media (max-width: 360px) {
   .sections button { font-size: 17px; }
   .brand-name { font-size: 16px; }
-  .brand-logo { height: 13px; }
 }
 
 /* ═════════ 리포트 간결화: 한눈 요약 + 접는 상세 ═════════ */
@@ -1140,3 +1136,7 @@ ul.rec-list small em { font-style: normal; opacity: .75; }
 /* 공고로 이동할 때: 고정된 상단 바 + 탭 줄 + 검색·분류 줄 바로 아래에 제목이 오게 (모바일에서 제목이 가려지던 문제) */
 :root { --filters-h: 0px; }
 .report, .bid, .bid.focused, [id^="bid-"] { scroll-margin-top: calc(var(--stick) + var(--filters-h) + 12px); }
+
+/* 운영사 표기 — 아주 작게 */
+.corp { text-align: center; font-size: 10.5px; letter-spacing: .02em; color: var(--muted); opacity: .75; padding: 4px 16px calc(14px + env(safe-area-inset-bottom, 0px)); }
+@media print { .corp { padding-bottom: 0; } }
