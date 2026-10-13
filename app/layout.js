@@ -27,6 +27,7 @@ export default function RootLayout({ children }) {
         <RegisterSW />
         <Nav />
         <main className="wrap">{children}</main>
+        {/* 운영사 표기 */}
         <footer className="corp">© (주)에이브로</footer>
       </body>
     </html>
