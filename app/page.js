@@ -8,7 +8,8 @@ import { workMix, prepayLevel, capacityFit } from "@/lib/work-mix";
 import { jointReview } from "@/lib/joint";
 import { estimateCost, COST, LABOR, UNIT, costModel } from "@/lib/cost";
 import { titleVideoOnly } from "@/lib/video-score";
-import { typeBuckets, bucketOf } from "@/lib/work-type";
+import { kindBuckets, kindBucketOf } from "@/lib/work-type";
+import FindPanel from "@/components/FindPanel";
 
 const TABS = [
   ["all", "전체"],
@@ -91,6 +92,10 @@ export default function Home() {
   const [showLow, setShowLow] = useState(false); // 영상 비중 낮은 공고 보기
   const [focus, setFocus] = useState(null);
   const [started, setStarted] = useState({}); // 분석 시작 시각
+  // 키워드를 아직 하나도 등록하지 않았으면 '찾기'부터 보여 준다
+  useEffect(() => {
+    api("/api/keywords").then((k) => { if (!(k.include || []).length) setSection((cur) => (cur === "schedule" ? "find" : cur)); }).catch(() => {});
+  }, []);
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     if (sp.get("bid")) setFocus(sp.get("bid"));
@@ -257,16 +262,12 @@ export default function Home() {
     const list = data.bids.filter(
       (b) =>
         (!rule || b.matched_rules.includes(rule)) &&
-        (showLow || focus === b.key || !b.analysis?.video?.low) &&
-        (focus === b.key || !soon(b)) &&
         (b.status === "join" || !b.close_at || new Date(b.close_at).getTime() > now) && // 마감 지난 공고는 표시 안 함 (참여 제외)
         (!words.length || words.every((w) => nz(`${b.title}${b.org || ""}${b.demand_org || ""}`).includes(w)))
     );
-    // 교수설계+영상 공고를 맨 위로
-    const p = (b) => ((b.analysis?.video?.only ?? titleVideoOnly(b.title)) ? 0 : b.analysis?.video?.priority ? 1 : 2);
-    return list.map((b, i) => [b, i]).sort((x, y) => p(x[0]) - p(y[0]) || x[1] - y[1]).map((x) => x[0]);
+    return list;
   }, [data, rule, q, showLow, focus]);
-  const lowCount = useMemo(() => (data ? data.bids.filter((b) => b.analysis?.video?.low).length : 0), [data]);
+  const lowCount = 0;
 
   // 검토로 넘긴 공고는 '입찰 공고' 쪽(전체·신규 등)에서 빼고 '검토·분석'에서만 보임
   const bidsOnly = useMemo(
@@ -295,10 +296,11 @@ export default function Home() {
     section === "review" ? reviewList.filter((b) => orgName(b) === curOrg) :
     section === "join" ? joinList :
     bidsOnly.filter((b) => b.status === "new");
-  const buckets = typeBuckets(sectionList);
+  const buckets = kindBuckets(sectionList);
   const curType = buckets.some((t) => t.key === typePick) ? typePick : (buckets[0]?.key ?? "all");
-  const shown = curType === "all" ? sectionList : sectionList.filter((b) => bucketOf(b, buckets) === curType);
+  const shown = curType === "all" ? sectionList : sectionList.filter((b) => kindBucketOf(b) === curType);
   const run = data?.lastRun;
+  const isList = section !== "schedule" && section !== "find";
 
   const anOf = (b) => ({ working: working === b.key, error: failed[b.key], started: started[b.key], retry: (force) => analyze(b.key, force) });
   if (trashOpen && data) {
@@ -337,6 +339,9 @@ export default function Home() {
       <div className="top" ref={topRef}>
         <div>
           <div className="sections" role="tablist">
+            <button role="tab" aria-selected={section === "find"} className={section === "find" ? "on" : ""} onClick={() => { setSection("find"); toTop(); }}>
+              찾기
+            </button>
             <button role="tab" aria-selected={section === "schedule"} className={section === "schedule" ? "on" : ""} onClick={() => { setSection("schedule"); toTop(); }}>
               일정표
             </button>
@@ -380,8 +385,8 @@ export default function Home() {
         </div>
       )}
 
-      {section !== "schedule" && <div id="filters-mark" aria-hidden="true" />}
-      {section !== "schedule" && <StickyFilters>
+      {isList && <div id="filters-mark" aria-hidden="true" />}
+      {isList && <StickyFilters>
         <input className="field search" type="search" placeholder="수집된 공고에서 찾기 (공고명·기관)" value={q} onChange={(e) => setQ(e.target.value)} />
         {buckets.length > 0 && (
           <div className="type-tabs" role="tablist" aria-label="공고 성격별">
@@ -398,7 +403,7 @@ export default function Home() {
       {loadErr && <div className="empty"><strong>목록을 불러오지 못했습니다</strong>{loadErr}</div>}
       {!data && !loadErr && <div className="empty">불러오는 중</div>}
 
-      {data && section !== "schedule" && !shown.length && (
+      {data && isList && !shown.length && (
         <div className="empty">
           {section === "join" ? (
             <><strong>참여하기로 한 공고가 없습니다</strong>검토·분석에서 <b>참여</b>를 누르면 여기로 옮겨집니다.</>
@@ -407,12 +412,12 @@ export default function Home() {
           ) : data.bids.length ? (
             <><strong>조건에 맞는 공고가 없습니다</strong>필터를 바꾸거나 마감 지난 공고도 표시해 보세요.</>
           ) : (
-            <><strong>아직 수집된 공고가 없습니다</strong>10분마다 자동으로 수집합니다. 잠시 후 다시 확인해 주세요.</>
+            <><strong>아직 모인 공고가 없습니다</strong><b>찾기</b>에서 키워드를 등록하면 최근 30일 공고를 바로 담고, 그 뒤로는 10분마다 새 공고를 모읍니다.</>
           )}
         </div>
       )}
 
-      {section !== "schedule" && lowCount > 0 && (
+      {isList && lowCount > 0 && (
         <div className="low-toggle">
           영상 비중이 낮은 공고 {lowCount}건을 {showLow ? "함께 보고 있습니다." : "숨겼습니다."}
           <button className="mini" onClick={() => setShowLow(!showLow)}>{showLow ? "다시 숨기기" : "보기"}</button>
@@ -420,11 +425,12 @@ export default function Home() {
       )}
 
       <div className="list">
+        {section === "find" && <FindPanel say={say} onChanged={load} />}
         {section === "schedule" && data && (
           <ScheduleBoard bids={base.filter((b) => b.status !== "pass")}
             onOpen={(b) => (b.status === "review" || b.status === "join" ? openReport(b.key) : (setSection("bids"), setFocus(b.key)))} />
         )}
-        {section !== "schedule" && shown.map((b) => (section === "review" || section === "join") ? <ReportCard key={b.key} bid={b} onUpdate={update} focused={focus === b.key} section={section} say={say}
+        {isList && shown.map((b) => (section === "review" || section === "join") ? <ReportCard key={b.key} bid={b} onUpdate={update} focused={focus === b.key} section={section} say={say}
             model={data?.costModel} onModel={(m) => setData((d) => ({ ...d, costModel: m }))}
             onLocal={(key, patch) => setData((d) => ({ ...d, bids: d.bids.map((x) => (x.key === key ? { ...x, ...patch } : x)) }))}
             an={anOf(b)} /> : <BidRow key={b.key} bid={b} onUpdate={update} focused={focus === b.key} detail={false} section={section} say={say}
@@ -736,9 +742,9 @@ function ScheduleBoard({ bids, onOpen }) {
     .map((b) => ({ b, ms: milestonesOf(b) }))
     .filter(({ ms }) => ms.close && new Date(ms.close) >= today)
     .sort((x, y) => new Date(x.ms.close) - new Date(y.ms.close));
-  const buckets = typeBuckets(live.map((x) => x.b));
+  const buckets = kindBuckets(live.map((x) => x.b));
   const cur = buckets.some((t) => t.key === pick) ? pick : (buckets[0]?.key ?? "all");
-  const rows = cur === "all" ? live : live.filter(({ b }) => bucketOf(b, buckets) === cur);
+  const rows = cur === "all" ? live : live.filter(({ b }) => kindBucketOf(b) === cur);
   const sameDay = (x, y) => x && y && +kstDay(x) === +kstDay(y);
 
   return (

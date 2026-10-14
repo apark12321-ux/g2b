@@ -1140,3 +1140,48 @@ ul.rec-list small em { font-style: normal; opacity: .75; }
 /* 운영사 표기 — 아주 작게 */
 .corp { text-align: center; font-size: 10.5px; letter-spacing: .02em; color: var(--muted); opacity: .75; padding: 4px 16px calc(14px + env(safe-area-inset-bottom, 0px)); }
 @media print { .corp { padding-bottom: 0; } }
+
+/* ── 찾기: 내 키워드 · 나라장터 검색 · 주요 키워드 ── */
+.find { display: grid; gap: 14px; margin-top: 12px; }
+.find-card { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+.find-card > h3 { margin: 0 0 12px; font-size: 18px; }
+.find-card > h3 small { display: block; margin-top: 3px; font-size: 13px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+.kw-box { padding: 12px 0; border-top: 1px solid var(--line); }
+.kw-box:first-of-type { border-top: 0; padding-top: 0; }
+.kw-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-bottom: 8px; }
+.kw-head b { font-size: 14px; }
+.kw-head small { font-size: 12px; color: var(--muted); }
+.kw-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.kw-chip { display: inline-flex; align-items: center; gap: 2px; padding: 5px 4px 5px 12px; border-radius: 999px; font-size: 14px; font-weight: 600;
+  background: color-mix(in srgb, var(--indigo) 12%, transparent); color: var(--indigo); }
+.kw-chip.ex { background: color-mix(in srgb, var(--seal) 10%, transparent); color: var(--seal); }
+.kw-chip button { border: 0; background: none; color: inherit; font-size: 17px; line-height: 1; padding: 0 6px; cursor: pointer; opacity: .7; }
+.kw-chip button:hover { opacity: 1; }
+.kw-empty { font-size: 13px; color: var(--muted); padding: 5px 0; }
+.kw-add, .find-bar { display: flex; gap: 8px; }
+.kw-add .field, .find-bar .field { flex: 1; min-width: 0; }
+.kw-on { font-size: 12px; font-weight: 600; color: var(--indigo); white-space: nowrap; }
+.find-card .type-tabs { margin-bottom: 12px; }
+.pop { display: grid; gap: 10px; margin-top: 14px; }
+.pop-row { display: grid; grid-template-columns: 118px 1fr; gap: 8px; align-items: start; }
+.pop-label { font-size: 12px; font-weight: 700; color: var(--muted); padding-top: 6px; }
+.pop-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pop-chips button { border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 999px; padding: 5px 11px; font-size: 13px; cursor: pointer; font-family: inherit; }
+.pop-chips button:hover { border-color: var(--indigo); color: var(--indigo); }
+.pop-chips button span { margin-left: 5px; font-size: 11px; color: var(--muted); }
+.find-res { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+.find-res-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 15px; }
+.find-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.find-list li { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.find-title { grid-column: 1; font-weight: 600; color: var(--ink); text-decoration: none; line-height: 1.45; }
+.find-title:hover { color: var(--indigo); text-decoration: underline; }
+.find-meta { grid-column: 1; display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 13px; color: var(--muted); }
+.find-meta .hot { color: var(--seal); font-weight: 600; }
+.find-act { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+@media (max-width: 640px) {
+  .find-card { padding: 16px 14px; }
+  .pop-row { grid-template-columns: 1fr; gap: 6px; }
+  .pop-label { padding-top: 0; }
+  .find-list li { grid-template-columns: 1fr; }
+  .find-act { grid-column: 1; grid-row: auto; justify-self: start; margin-top: 4px; }
+}
