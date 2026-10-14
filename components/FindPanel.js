@@ -141,7 +141,7 @@ export default function FindPanel({ say, onChanged }) {
           </div>
           {(t?.recent || []).length > 0 && (
             <div className="pop-row">
-              <span className="pop-label">이틀간 많이 올라온 말</span>
+              <span className="pop-label">오늘 많이 올라온 말</span>
               <div className="pop-chips">
                 {t.recent.map(({ w, n }) => <button key={w} type="button" onClick={() => search(w)}>{w}<span>{n}</span></button>)}
               </div>
