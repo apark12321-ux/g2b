@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { FRESH_START } from "@/lib/fresh";
 import { db } from "@/lib/supabase";
 import { getSettings } from "@/lib/keywords";
 import { sameBidKey, isNewer } from "@/lib/g2b";
@@ -25,7 +26,7 @@ export async function GET() {
   try {
     const supa = db();
     const [bids, runs, settings, cm] = await Promise.all([
-      supa.from("bids").select("*").order("created_at", { ascending: false }).limit(500),
+      supa.from("bids").select("*").gte("updated_at", FRESH_START).order("created_at", { ascending: false }).limit(500),
       supa.from("runs").select("*").order("ran_at", { ascending: false }).limit(1),
       getSettings(),
       supa.from("app_settings").select("value").eq("key", "cost_model").maybeSingle(),
