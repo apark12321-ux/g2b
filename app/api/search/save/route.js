@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isOld, RESET_FIELDS } from "@/lib/fresh";
 import { db } from "@/lib/supabase";
 import { getSettings } from "@/lib/keywords";
 import { withKindTag } from "@/lib/g2b";
@@ -13,8 +14,9 @@ export async function POST(req) {
     const s = await getSettings();
     const pick = ({ key, bid_no, bid_ord, title, org, demand_org, price, posted_at, close_at, url, files, kind }) =>
       ({ key, bid_no, bid_ord, title, org, demand_org, price, posted_at, close_at, url, files: files || [], kind });
-    const { data: cur } = await db().from("bids").select("key, status").eq("key", row.key).maybeSingle();
-    const record = { ...pick(row), status: cur && cur.status !== "new" && cur.status !== "pass" ? cur.status : "review",
+    const { data: found } = await db().from("bids").select("key, status, updated_at").eq("key", row.key).maybeSingle();
+    const cur = found && !isOld(found) ? found : null; // 초기화 이전 데이터는 없는 것으로 본다
+    const record = { ...pick(row), ...(found && !cur ? RESET_FIELDS : {}), status: cur && cur.status !== "new" && cur.status !== "pass" ? cur.status : "review",
       matched_rules: ["검색"], keywords: keyword ? [keyword] : [], notified_rule_ids: [s.id], updated_at: new Date().toISOString() };
     const { data, error } = await db().from("bids").upsert(withKindTag(record), { onConflict: "key" }).select().single();
     if (error) throw error;
