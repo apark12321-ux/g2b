@@ -14,7 +14,7 @@ const KINDS = [
 const LABEL = Object.fromEntries(KINDS.map((k) => [k.key, k.label]));
 const clean = (s) => String(s || "").replace(/\s+/g, " ").trim().slice(0, 30);
 
-function WordBox({ title, hint, words, placeholder, onAdd, onRemove, tone, pending }) {
+function WordBox({ title, hint, words, placeholder, onAdd, onRemove, tone, pending = {}, onRetry }) {
   const [v, setV] = useState("");
   const add = () => { const w = clean(v); if (w) { onAdd(w); setV(""); } };
   return (
@@ -24,7 +24,8 @@ function WordBox({ title, hint, words, placeholder, onAdd, onRemove, tone, pendi
         {words.map((w) => (
           <span key={w} className={`kw-chip ${tone || ""}`}>
             {w}
-            {pending === w && <em className="kw-busy">수집 중</em>}
+            {pending[w] === "busy" && <em className="kw-busy">수집 중</em>}
+            {pending[w] === "late" && <button type="button" className="kw-retry" onClick={() => onRetry?.(w)}>다시 시도</button>}
             <button type="button" aria-label={`${w} 삭제`} onClick={() => onRemove(w)}>×</button>
           </span>
         ))}
@@ -47,7 +48,7 @@ export default function FindPanel({ say, onChanged }) {
   const [res, setRes] = useState(null); // { q, kind, items } | null
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [pending, setPending] = useState(""); // 방금 등록해 최근 30일 공고를 모으는 중인 단어
+  const [pending, setPending] = useState({}); // 단어 → "busy"(최근 30일 공고 수집 중) | "late"(3번 해도 안 됨)
 
   useEffect(() => { api("/api/keywords").then(setSet).catch((e) => setErr(e.message)); }, []);
   useEffect(() => {
@@ -55,24 +56,50 @@ export default function FindPanel({ say, onChanged }) {
     api(`/api/trending?kind=${kind}`).then((t) => setTrend((m) => ({ ...m, [kind]: t }))).catch(() => {});
   }, [kind, trend]);
 
-  const save = useCallback(async (patch, msg, word = "") => {
+  /* 새 단어의 최근 30일 공고 채우기 — 나라장터가 느리면 못 끝낸 조합만 다시 (최대 3번).
+     3번 해도 남으면 실패라고 하지 않고 '다시 시도' 버튼만 남긴다 (10분마다 수집은 그대로 돎) */
+  const fill = useCallback(async (words) => {
+    setPending((p) => ({ ...p, ...Object.fromEntries(words.map((w) => [w, "busy"])) }));
+    let pairs = null, filled = 0;
+    for (let i = 0; i < 3; i++) {
+      try {
+        const r = await api("/api/keywords/fill", { method: "POST", body: JSON.stringify({ words, pairs }) });
+        filled += r.filled || 0;
+        if (r.filled) onChanged?.();
+        pairs = r.failed || [];
+        if (!pairs.length) break;
+      } catch { pairs = pairs || null; }
+      await new Promise((ok) => setTimeout(ok, 1500));
+    }
+    const left = new Set((pairs === null ? words.map((w) => [w]) : pairs).map(([w]) => w));
+    setPending((p) => {
+      const n = { ...p };
+      for (const w of words) { if (left.has(w)) n[w] = "late"; else delete n[w]; }
+      return n;
+    });
+    const name = words.map((w) => `'${w}'`).join(", ");
+    if (left.size) say(`${name} 최근 공고 수집 지연 · 잠시 후 '다시 시도'${filled ? ` (${filled}건 수집됨)` : ""}`);
+    else say(`${name} 최근 30일 공고 ${filled ? `${filled}건 수집` : "없음 · 새 공고부터 알림"}`);
+  }, [say, onChanged]);
+
+  const save = useCallback(async (patch, msg) => {
     setSaving(true);
-    setSet((cur) => (cur ? { ...cur, ...patch } : cur)); // 누르자마자 화면에 반영 (저장·수집은 뒤에서)
-    if (word) setPending(word);
+    setSet((cur) => (cur ? { ...cur, ...patch } : cur)); // 누르자마자 화면에 반영
     try {
       const r = await api("/api/keywords", { method: "PUT", body: JSON.stringify(patch) });
       setSet({ include: r.include || [], exclude: r.exclude || [], kinds: r.kinds || [] });
-      say(r.added?.length ? `${msg}${r.filled ? ` · 최근 30일 공고 ${r.filled}건 수집` : " · 최근 30일 해당 공고 없음"}` : msg);
+      say(msg);
       onChanged?.();
+      if (r.added?.length) fill(r.added); // 저장은 끝, 최근 공고 채우기는 뒤에서
     } catch (e) {
-      say(`저장 실패: ${e.message}`, true);
-      api("/api/keywords").then(setSet).catch(() => {}); // 실패하면 저장된 상태로 되돌림
+      say(`저장 지연 · 잠시 후 다시 시도`, true);
+      api("/api/keywords").then(setSet).catch(() => {}); // 저장된 상태로 되돌림
     }
-    finally { setSaving(false); setPending(""); }
-  }, [say, onChanged]);
+    finally { setSaving(false); }
+  }, [say, onChanged, fill]);
 
   const has = (list, w) => list.some((x) => x.replace(/\s/g, "") === w.replace(/\s/g, ""));
-  const addInclude = (w) => set && !has(set.include, w) && save({ include: [...set.include, w] }, `'${w}' 등록 완료`, w);
+  const addInclude = (w) => set && !has(set.include, w) && save({ include: [...set.include, w] }, `'${w}' 등록 완료`);
   const removeInclude = (w) => save({ include: set.include.filter((x) => x !== w) }, `'${w}' 삭제`);
   const addExclude = (w) => set && !has(set.exclude, w) && save({ exclude: [...set.exclude, w] }, `제외어 '${w}' 등록`);
   const removeExclude = (w) => save({ exclude: set.exclude.filter((x) => x !== w) }, `제외어 '${w}' 삭제`);
@@ -86,11 +113,17 @@ export default function FindPanel({ say, onChanged }) {
     const w = clean(word);
     if (!w) return;
     setQ(w); setBusy(true); setErr(""); setRes(null);
-    try {
-      const r = await api(`/api/search?q=${encodeURIComponent(w)}&kind=${k}&days=30`);
-      setRes({ q: w, kind: k, items: r.items || [] });
-    } catch (e) { setErr(e.message); setRes(null); }
-    finally { setBusy(false); }
+    // 나라장터가 느리면 조용히 다시 (최대 3번) — 그래도 안 되면 다시 검색 안내
+    for (let i = 0; i < 3; i++) {
+      try {
+        const r = await api(`/api/search?q=${encodeURIComponent(w)}&kind=${k}&days=30`);
+        setRes({ q: w, kind: k, items: r.items || [] });
+        setBusy(false);
+        return;
+      } catch { if (i < 2) await new Promise((ok) => setTimeout(ok, 1500)); }
+    }
+    setErr("나라장터 응답 지연 · 잠시 후 다시 검색");
+    setBusy(false);
   };
 
   const keep = async (row) => {
@@ -99,7 +132,7 @@ export default function FindPanel({ say, onChanged }) {
       setRes((r) => ({ ...r, items: r.items.map((x) => (x.key === row.key ? { ...x, saved: "review" } : x)) }));
       say("검토 담기 완료 · 첨부 분석 시작");
       onChanged?.();
-    } catch (e) { say(`담기 실패: ${e.message}`, true); }
+    } catch (e) { say("담기 지연 · 잠시 후 다시 시도", true); }
   };
 
   const t = trend[kind];
@@ -109,7 +142,7 @@ export default function FindPanel({ say, onChanged }) {
         <h3>내 키워드 <small>공고명 포함 시 10분마다 수집·알림</small></h3>
         {!set ? <div className="empty">불러오는 중</div> : (
           <>
-            <WordBox title="포함 단어" hint="하나라도 포함 시 수집" words={set.include} pending={pending}
+            <WordBox title="포함 단어" hint="하나라도 포함 시 수집" words={set.include} pending={pending} onRetry={(w) => fill([w])}
               placeholder="예: 청소, 홍보영상, 태양광" onAdd={addInclude} onRemove={removeInclude} />
             <WordBox title="제외 단어" hint="포함 시 수집 제외" words={set.exclude} tone="ex"
               placeholder="예: 유지보수, 임차" onAdd={addExclude} onRemove={removeExclude} />
@@ -158,7 +191,7 @@ export default function FindPanel({ say, onChanged }) {
         </div>
 
         {busy && <div className="find-busy" role="status"><span className="dot on" aria-hidden />‘{q}’ {LABEL[kind]} 공고 검색 중</div>}
-        {err && <div className="empty"><strong>검색 실패</strong>{err}</div>}
+        {err && <div className="empty">{err}</div>}
         {res && !busy && (
           <div className="find-res">
             <div className="find-res-head">
