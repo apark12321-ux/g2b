@@ -78,7 +78,7 @@ export default function FindPanel({ say, onChanged }) {
       return n;
     });
     const name = words.map((w) => `'${w}'`).join(", ");
-    if (left.size) say(`${name} 최근 공고 수집 지연 · 잠시 후 '다시 시도'${filled ? ` (${filled}건 수집됨)` : ""}`);
+    if (left.size) say(`나라장터 응답 지연 · ${name} 최근 공고는 연결되는 대로 자동 수집${filled ? ` (${filled}건 수집됨)` : ""}`);
     else say(`${name} 최근 30일 공고 ${filled ? `${filled}건 수집` : "없음 · 새 공고부터 알림"}`);
   }, [say, onChanged]);
 
