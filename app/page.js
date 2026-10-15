@@ -241,12 +241,18 @@ export default function Home() {
   const update = async (key, patch, localOnly = false) => {
     setData((d) => ({ ...d, bids: d.bids.map((b) => (b.key === key ? { ...b, ...patch } : b)) }));
     if (localOnly) return; // 이미 서버에 저장된 값을 화면에만 반영
-    try {
-      await api(`/api/bids/${encodeURIComponent(key)}`, { method: "PATCH", body: JSON.stringify(patch) });
-    } catch (e) {
-      say(`저장하지 못했습니다: ${e.message}`, true);
-      load();
+    // 일시 오류면 조용히 다시 (최대 3번) — 그래도 안 되면 짧게 안내
+    for (let i = 0; i < 3; i++) {
+      try {
+        await api(`/api/bids/${encodeURIComponent(key)}`, { method: "PATCH", body: JSON.stringify(patch) });
+        return;
+      } catch (e) {
+        console.error("저장 실패", key, e?.message);
+        if (i < 2) await new Promise((ok) => setTimeout(ok, 1200));
+      }
     }
+    say("저장 지연 · 잠시 후 다시 시도", true);
+    load();
   };
 
   analyze.done = (key) => say("분석이 끝났습니다.", false, null, { label: "리포트 보기", fn: () => openReport(key) });
@@ -310,7 +316,7 @@ export default function Home() {
         <div className="trash-bar">
           <button className="mini" onClick={() => setTrashOpen(false)}>← 돌아가기</button>
           <h2>휴지통</h2>
-          <p>불참 처리한 공고입니다. 되살리면 입찰 공고(신규)로 돌아갑니다. 마감이 지난 공고는 자동으로 지워집니다.</p>
+          <p>불참 처리한 공고입니다. 되살리면 입찰 공고(신규)로 이동 · 마감 지난 공고는 자동 삭제</p>
         </div>
         {!trash.length ? <div className="empty">휴지통이 비어 있습니다.</div> : (
           <ul className="trash-list">
@@ -321,7 +327,7 @@ export default function Home() {
                   <small>{clientOf(b)} · 마감 {md(b.close_at)}{b.updated_at ? ` · 불참 처리 ${md(b.updated_at)}` : ""}{autoOut(b) ? ` · 참가지역 제한(${b.region})으로 자동 제외` : ""}</small>
                   {/^불참 사유:/.test(b.memo || "") && <small className="why">{b.memo}</small>}
                 </div>
-                <button className="btn" onClick={() => { update(b.key, { status: "new", memo: /^불참 사유:/.test(b.memo || "") ? null : b.memo }); say("되살렸습니다. 입찰 공고에서 다시 볼 수 있습니다."); }}>되살리기</button>
+                <button className="btn" onClick={() => { update(b.key, { status: "new", memo: /^불참 사유:/.test(b.memo || "") ? "" : (b.memo || "") }); say("되살리기 완료 · 입찰 공고에서 확인"); }}>되살리기</button>
               </li>
             ))}
           </ul>
@@ -1456,7 +1462,7 @@ function Stamps({ bid: b, onUpdate, an, say, section }) {
       })}
       {asking && (
         <PassDialog bid={b} onClose={() => setAsking(false)} onConfirm={(reason) => {
-          const prev = { status: b.status, memo: b.memo || null };
+          const prev = { status: b.status, memo: b.memo || "" };
           setAsking(false);
           onUpdate(b.key, { status: "pass", memo: `불참 사유: ${reason}` });
           say(`불참 처리했습니다 (${reason}).`, false, () => onUpdate(b.key, prev));
