@@ -1143,7 +1143,8 @@ ul.rec-list small em { font-style: normal; opacity: .75; }
 @media print { .corp { padding-bottom: 0; } }
 
 /* ── 찾기: 내 키워드 · 나라장터 검색 · 주요 키워드 ── */
-.find { display: grid; gap: 14px; margin-top: 12px; }
+.find { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin-top: 12px; }
+.find-card { min-width: 0; }
 .find-card { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
 .find-card > h3 { margin: 0 0 12px; font-size: 18px; }
 .find-card > h3 small { display: block; margin-top: 3px; font-size: 13px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
@@ -1218,3 +1219,25 @@ ul.rec-list small em { font-style: normal; opacity: .75; }
 @keyframes splash-out { to { opacity: 0; visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .splash { animation-duration: .01s; animation-delay: .6s; } }
 @media print { .splash { display: none; } }
+
+/* ── 앱 안 브라우저(카카오톡 등) 안내 ── */
+.inapp { position: fixed; inset: 0; z-index: 10000; background: rgba(15,23,42,.55); display: flex; align-items: flex-end; justify-content: center; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); }
+.inapp-card { width: 100%; max-width: 420px; background: #fff; color: #111827; border-radius: 16px; padding: 20px; display: grid; gap: 10px; text-align: center; }
+.inapp-card b { font-size: 18px; } .inapp-card p { margin: 0 0 4px; color: #6b7280; font-size: 14px; }
+.inapp-card .btn { display: block; width: 100%; padding: 13px; font-size: 16px; text-decoration: none; }
+.inapp-skip { border: 0; background: none; color: #6b7280; font-size: 13px; padding: 6px; }
+
+/* ── 앱 설치 안내 (모바일 첫 접속) ── */
+.isheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); animation: isheet-up .3s ease; }
+.isheet-card { max-width: 480px; margin: 0 auto; background: var(--card, #fff); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.18); padding: 16px 18px; display: grid; gap: 6px; }
+.isheet-card b { font-size: 16px; } .isheet-card p { margin: 0; font-size: 13.5px; color: var(--muted); }
+.isheet-card .isheet-how { color: var(--ink); }
+.isheet-go { width: 100%; padding: 12px; font-size: 15px; margin-top: 4px; }
+.isheet-later { justify-self: center; border: 0; background: none; color: var(--muted); font-size: 13px; padding: 6px 10px; }
+@keyframes isheet-up { from { transform: translateY(100%); } to { transform: none; } }
+@media print { .isheet, .inapp { display: none; } }
+
+/* ── 모바일: 가로 스크롤 방지 (sticky 를 깨지 않는 clip 사용) ── */
+html, body { overflow-x: clip; }
+.wrap, .list { min-width: 0; }
+input, select, textarea { font-size: max(16px, 1em); } /* 아이폰 입력 시 자동 확대 방지 */
