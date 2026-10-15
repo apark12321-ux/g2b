@@ -4,7 +4,7 @@ import { searchBids } from "@/lib/g2b";
 import { db } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 // 나라장터에서 공고명으로 바로 찾기: /api/search?q=청소&kind=servc&days=30
 export async function GET(req) {
