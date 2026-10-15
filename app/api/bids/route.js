@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
 import { getSettings } from "@/lib/keywords";
 import { sameBidKey, isNewer } from "@/lib/g2b";
-import { isExcluded as excluded } from "@/lib/watch-words";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +33,7 @@ export async function GET() {
     const err = bids.error || runs.error;
     if (err) throw err;
     return NextResponse.json({
-      bids: latestOnly(bids.data.filter((b) => b.status === "review" || b.status === "join" || !excluded(b.title))),
+      bids: latestOnly(bids.data),
       lastRun: runs.data[0] || null,
       topic: settings.topic,
       costModel: cm?.data?.value ? JSON.parse(cm.data.value) : {},
