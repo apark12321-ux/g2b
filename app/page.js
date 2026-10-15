@@ -397,19 +397,19 @@ export default function Home() {
         )}
       </StickyFilters>}
 
-      {loadErr && <div className="empty"><strong>목록을 불러오지 못했습니다</strong>{loadErr}</div>}
+      {loadErr && <div className="empty"><strong>목록 불러오기 실패</strong>{loadErr}</div>}
       {!data && !loadErr && <div className="empty">불러오는 중</div>}
 
       {data && isList && !shown.length && (
         <div className="empty">
           {section === "join" ? (
-            <><strong>참여하기로 한 공고가 없습니다</strong>검토·분석에서 <b>참여</b>를 누르면 여기로 옮겨집니다.</>
+            <><strong>참여 공고 없음</strong>검토·분석에서 <b>참여</b> 선택 시 이동</>
           ) : section === "review" ? (
-            <><strong>검토 중인 공고가 없습니다</strong>입찰 공고에서 <b>검토</b>를 누르면 여기서 분석 결과를 볼 수 있습니다.</>
+            <><strong>검토 공고 없음</strong>입찰 공고에서 <b>검토</b> 선택 시 분석 결과 확인 가능</>
           ) : data.bids.length ? (
-            <><strong>조건에 맞는 공고가 없습니다</strong>필터를 바꾸거나 마감 지난 공고도 표시해 보세요.</>
+            <><strong>조건에 맞는 공고 없음</strong>필터 변경 또는 마감 공고 표시로 확인</>
           ) : (
-            <><strong>아직 모인 공고가 없습니다</strong><b>찾기</b>에서 키워드를 등록하면 최근 30일 공고를 바로 담고, 그 뒤로는 10분마다 새 공고를 모읍니다.</>
+            <><strong>수집된 공고 없음</strong><b>찾기</b>에서 키워드 등록 시 최근 30일 공고 즉시 수집 · 이후 10분마다 자동 수집</>
           )}
         </div>
       )}

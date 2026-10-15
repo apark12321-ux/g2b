@@ -1191,3 +1191,7 @@ ul.rec-list small em { font-style: normal; opacity: .75; }
 .rp-retry { display: block; margin: 8px 0 0; padding: 8px 12px; border-radius: 8px; background: color-mix(in srgb, #b7791f 10%, transparent); color: var(--ink); font-size: 13px; line-height: 1.5; }
 .rp-retry .dot { display: inline-block; vertical-align: 1px; margin-right: 6px; }
 .rp-retry small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }
+
+/* 찾기: 수집 중·검색 중 표시 */
+.kw-busy { font-style: normal; font-size: 11px; color: #b7791f; margin-left: 4px; }
+.find-busy { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 14px; border-radius: 10px; background: var(--paper); color: var(--muted); font-size: 14px; }
