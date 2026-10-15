@@ -977,15 +977,16 @@ body { padding-top: var(--nav-h); }
 .sum-box.work ul.wm b { font-size: 19px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .sum-box.work ul.wm span { display: flex; flex-direction: column; font-size: 13px; font-weight: 600; line-height: 1.3; }
 .sum-box.work ul.wm small { font-weight: 400; font-size: 11px; color: var(--muted); }
-.wm-video b { color: var(--indigo); } .wm-isd b { color: #b7791f; } .wm-dev b, .wm-ops b, .wm-etc b { color: var(--muted); }
+.wm-c0 b { color: var(--indigo); } .wm-c1 b { color: #b7791f; } .wm-c2 b, .wm-c3 b { color: var(--muted); }
+.ce-more { margin: 10px 0; } .ce-more summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
 .wm-fit { display: flex; flex-direction: column; gap: 1px; margin: 8px 0 0; padding: 8px 10px; border-radius: 6px; font-size: 13px; border-left: 4px solid var(--line); background: var(--paper); }
 .wm-fit span { color: var(--muted); font-size: 12.5px; }
 .wm-fit.f-good { border-left-color: #2e7d4f; } .wm-fit.f-good b { color: #2e7d4f; }
 .wm-fit.f-warn { border-left-color: #b7791f; } .wm-fit.f-warn b { color: #b7791f; }
 .wm-fit.f-bad { border-left-color: var(--seal); } .wm-fit.f-bad b { color: var(--seal); }
 @media (prefers-color-scheme: dark) {
-  .wm-fit.f-good b, .wm-video b { color: #5fbf86; } .wm-fit.f-warn b, .wm-isd b { color: #e0a84a; }
-  .wm-video b { color: var(--indigo); }
+  .wm-c1 b { color: #e0a84a; }
+  .wm-c0 b { color: var(--indigo); }
 }
 
 /* ───────── 일정표: 숫자 표 ───────── */
@@ -1185,3 +1186,8 @@ ul.rec-list small em { font-style: normal; opacity: .75; }
   .find-list li { grid-template-columns: 1fr; }
   .find-act { grid-column: 1; grid-row: auto; justify-self: start; margin-top: 4px; }
 }
+
+/* 첨부 읽기 재시도 안내 */
+.rp-retry { display: block; margin: 8px 0 0; padding: 8px 12px; border-radius: 8px; background: color-mix(in srgb, #b7791f 10%, transparent); color: var(--ink); font-size: 13px; line-height: 1.5; }
+.rp-retry .dot { display: inline-block; vertical-align: 1px; margin-right: 6px; }
+.rp-retry small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }

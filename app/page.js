@@ -4,10 +4,9 @@ import { api } from "@/components/api";
 import { at, dday, money, when } from "@/components/format";
 import { winScore, reviewRisks, BOILERPLATE } from "@/lib/score";
 import { cashNeed } from "@/lib/payment";
-import { workMix, prepayLevel, capacityFit } from "@/lib/work-mix";
+import { workMix } from "@/lib/work-mix";
 import { jointReview } from "@/lib/joint";
 import { estimateCost, COST, LABOR, UNIT, costModel } from "@/lib/cost";
-import { titleVideoOnly } from "@/lib/video-score";
 import { kindBuckets, kindBucketOf } from "@/lib/work-type";
 import FindPanel from "@/components/FindPanel";
 
@@ -89,7 +88,6 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false); // 기존 공고 분석 일괄 갱신
   const [rule, setRule] = useState("");
   const [q, setQ] = useState("");
-  const [showLow, setShowLow] = useState(false); // 영상 비중 낮은 공고 보기
   const [focus, setFocus] = useState(null);
   const [started, setStarted] = useState({}); // 분석 시작 시각
   // 키워드를 아직 하나도 등록하지 않았으면 '찾기'부터 보여 준다
@@ -222,7 +220,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 19 || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 20 || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -266,8 +264,7 @@ export default function Home() {
         (!words.length || words.every((w) => nz(`${b.title}${b.org || ""}${b.demand_org || ""}`).includes(w)))
     );
     return list;
-  }, [data, rule, q, showLow, focus]);
-  const lowCount = 0;
+  }, [data, rule, q, focus]);
 
   // 검토로 넘긴 공고는 '입찰 공고' 쪽(전체·신규 등)에서 빼고 '검토·분석'에서만 보임
   const bidsOnly = useMemo(
@@ -414,13 +411,6 @@ export default function Home() {
           ) : (
             <><strong>아직 모인 공고가 없습니다</strong><b>찾기</b>에서 키워드를 등록하면 최근 30일 공고를 바로 담고, 그 뒤로는 10분마다 새 공고를 모읍니다.</>
           )}
-        </div>
-      )}
-
-      {isList && lowCount > 0 && (
-        <div className="low-toggle">
-          영상 비중이 낮은 공고 {lowCount}건을 {showLow ? "함께 보고 있습니다." : "숨겼습니다."}
-          <button className="mini" onClick={() => setShowLow(!showLow)}>{showLow ? "다시 숨기기" : "보기"}</button>
         </div>
       )}
 
@@ -848,14 +838,14 @@ function CostEditor({ model, onSaved, say }) {
   );
   return (
     <div className="cost-edit">
-      <p>발주처 예산 = 순원가(노무비 + 경비) × (1 + 일반관리비) × (1 + 이윤)로 역산하고, 그 노무비만큼 인력을 배치합니다. 산출내역서가 있으면 그 금액을 그대로 씁니다. 고치면 모든 공고에 바로 다시 계산됩니다.</p>
+      <p>발주처 예산 = 순원가(노무비 + 경비) × (1 + 일반관리비) × (1 + 이윤)로 역산하고, 그 노무비만큼 인력을 배치합니다. 산출내역서가 있으면 그 금액을, 없으면 과업지시서의 인원·수량·기간을 씁니다. 회사 사정에 맞게 고치면 모든 공고에 바로 다시 계산됩니다.</p>
       <div className="ce-grid">
-        {F("rateHigh", "고급 1일 노임 (PM·교수설계)", "원")}
-        {F("rateMid", "중급 1일 노임 (촬영·편집·디자인)", "원")}
-        {F("rateLow", "초급 1일 노임 (자막·검수)", "원")}
-        {F("ownFacility", "자체 스튜디오·장비 (1=보유)", "")}
-        {F("internalPeople", "내부 제작 인력", "명")}
-        {F("internalMonthly", "내부 제작 인력 월 인건비 (0=노임단가)", "원")}
+        {F("rateHigh", "고급 1일 노임 (책임자·PM)", "원")}
+        {F("rateMid", "중급 1일 노임 (실무)", "원")}
+        {F("rateLow", "초급 1일 노임 (보조)", "원")}
+        {F("ownFacility", "자체 시설·장비 (1=보유)", "")}
+        {F("internalPeople", "내부 인력", "명")}
+        {F("internalMonthly", "내부 인력 월 인건비 (0=노임단가)", "원")}
         {F("days", "월 근무일수", "일")}
         {F("teamMax", "동시 가용 인력", "명")}
         {F("ownerGA", "발주처 일반관리비율", "%")}
@@ -869,9 +859,12 @@ function CostEditor({ model, onSaved, say }) {
         {F("pmPerMonth", "PM 최소 투입", "M/M/월")}
         {F("proposalMM", "제안·계약 대응", "M/M")}
       </div>
-      <div className="ce-grid">
-        {Object.entries(UNIT).flatMap(([k, u]) => [F(`mm_${k}`, `${u.label} 1개`, "M/M"), F(`direct_${k}`, `${k} 1개 경비`, "만원")])}
-      </div>
+      <details className="ce-more">
+        <summary>콘텐츠 제작(이러닝·영상) 공고에만 쓰는 단위 기준</summary>
+        <div className="ce-grid">
+          {Object.entries(UNIT).flatMap(([k, u]) => [F(`mm_${k}`, `${u.label} 1개`, "M/M"), F(`direct_${k}`, `${k} 1개 경비`, "만원")])}
+        </div>
+      </details>
       <button className="btn primary" onClick={save}>저장</button>
     </div>
   );
@@ -942,8 +935,6 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
           )}
         </div>
         <a className="rp-title" href={b.url} target="_blank" rel="noreferrer">
-          {(a?.video?.only ?? titleVideoOnly(b.title)) ? <span className="prio only">영상 제작</span>
-            : a?.video?.priority && <span className="prio">교수설계+영상</span>}
           {revised && <span className="revised">정정</span>}
           {b.title}
         </a>
@@ -956,6 +947,13 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
           <span>{b.price ? `${(b.price / 1e8).toFixed(b.price >= 1e9 ? 0 : 2).replace(/\.?0+$/, "")}억원` : "가격 미공개"}</span>
           {b.region && b.region !== "전국" && <span>참가지역 {b.region}</span>}
           <a href={b.url} target="_blank" rel="noreferrer">공고 원문 ↗</a>
+        </p>
+      )}
+      {r && !an.working && a?.readRetry && (
+        <p className="rp-retry">
+          {a.readRetry.noFiles ? "첨부 문서가 아직 올라오지 않았습니다" : `첨부 문서 ${a.readRetry.missed?.length || ""}개를 아직 읽지 못했습니다`}
+          {" — "}읽을 때까지 10분마다 자동으로 다시 시도합니다
+          <small>{a.readRetry.tries}회째 · 마지막 시도 {at(a.readRetry.at)}</small>
         </p>
       )}
 
@@ -992,57 +990,31 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   <div><span>대금 지급 <em className={`tg ${a.payment?.method ? "fact" : "est"}`}>{a.payment?.method ? "문서" : "미기재"}</em></span><b className="sm">{a.payment?.method || "문서에 지급 조건 없음"}</b><small>{cash ? (cash.peak < 1e6 ? "선금으로 충당 가능" : `선투입 약 ${est.won(cash.peak)}`) : a.payment?.method ? "" : "공고문·계약특수조건 확인 필요"}</small></div>
                 </div>
                 {(() => {
-                  const wm = a.workMix || workMix(b, a, "");
-                  const pre = a.prepay || prepayLevel(a.payment);
-                  const fit = a.capacity || capacityFit(wm, pre);
+                  const wm = a.workMix?.level ? a.workMix : workMix(b, a, "");
                   if (!wm) return null;
                   return (
-                    <>
-                      {/* ① 공고가 요구하는 일 — 문서에 적힌 사실만 */}
-                      <div className="sum-box work">
-                        <h4>과업 구성 <small>{wm.basis}</small></h4>
-                        {wm.level === "제목" ? (
-                          <p className="wm-none">
-                            공고문을 읽지 못해 비율을 내지 않았습니다. 공고명으로 보면 <b>{wm.mix.map((x) => x.label).join(" · ")}</b> 쪽입니다.
-                          </p>
-                        ) : (
-                          <ul className="wm">
-                            {wm.mix.map((x) => (
-                              <li key={x.key} className={`wm-${x.key}`}>
-                                <b>{x.pct}%</b>
-                                <span>{x.label}<small>{x.hint}</small></span>
-                              </li>
+                    <div className="sum-box work">
+                      <h4>과업 구성 <small>{wm.basis}</small></h4>
+                      <ul className="wm">
+                        {wm.mix.map((x, i) => (
+                          <li key={x.key} className={`wm-c${Math.min(i, 3)}`}>
+                            <b>{x.pct}%</b>
+                            <span>{x.label}{x.hint && <small>{x.hint}</small>}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {wm.mix.some((x) => x.why?.length) && (
+                        <details className="wm-why">
+                          <summary>이 비율의 근거</summary>
+                          <ul>
+                            {wm.mix.filter((x) => x.why?.length).map((x) => (
+                              <li key={x.key}><b>{x.label}</b>{x.why.map((w, i) => <span key={i}>{w}</span>)}</li>
                             ))}
                           </ul>
-                        )}
-                        {wm.mix.some((x) => x.why?.length) && (
-                          <details className="wm-why">
-                            <summary>이 비율의 근거</summary>
-                            <ul>
-                              {wm.mix.filter((x) => x.why?.length).map((x) => (
-                                <li key={x.key}><b>{x.label}</b>{x.why.map((w, i) => <span key={i}>{w}</span>)}</li>
-                              ))}
-                            </ul>
-                            {!wm.exact && <p>분량이 적혀 있지 않아 과업 항목 수로만 나눈 값입니다. 제안요청서에서 직접 확인하세요.</p>}
-                          </details>
-                        )}
-                      </div>
-                      {/* ② 위 사실을 우리 사정에 대입한 판단 — 공고 분석과 섞지 않는다 */}
-                      {fit && (
-                        <div className="sum-box fitbox">
-                          <h4>후미디어 기준 판단 <small>위 과업 구성을 우리 인력·자금 사정에 대입한 것</small></h4>
-                          <p className={`wm-fit f-${fit.fit === "좋음" ? "good" : fit.fit === "보통" ? "warn" : "bad"}`}>
-                            <b>{fit.headline}</b>
-                            <span>선투자 {pre.level}{pre.level === "가능" && pre.pct ? ` (선금 ${pre.pct}%)` : ""} — {fit.note}</span>
-                          </p>
-                          {fit.items?.length > 0 && (
-                            <ul className="fit-items">
-                              {fit.items.map((x, i) => <li key={i} className={x.n >= 0 ? "ok" : "bad"}>{x.why}</li>)}
-                            </ul>
-                          )}
-                        </div>
+                          {!wm.exact && <p>분량이 문서에 적혀 있지 않아 대략 나눈 값입니다. 제안요청서·과업지시서에서 직접 확인하세요.</p>}
+                        </details>
                       )}
-                    </>
+                    </div>
                   );
                 })()}
                 {(() => {
@@ -1183,7 +1155,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
             <details className="rp-fold"><summary>원가 · 인력 상세 <small>{est.owner ? "발주처 원가 역산 · " : ""}역할별 투입·비용 항목</small></summary>
               
               {est.confidence === "낮음" && (
-                <p className="rp-warn">분량을 문서에서 확인하지 못해 가정으로 계산했습니다. 마진·점수가 실제와 크게 다를 수 있으니 제안요청서의 분량(강좌·주차·차시·편수)을 확인하세요.</p>
+                <p className="rp-warn">문서에서 투입 인력·수량을 확인하지 못해 발주처 예산 구조로만 계산했습니다. 마진·점수가 실제와 크게 다를 수 있으니 과업지시서의 인원·수량·기간을 확인하세요.</p>
               )}
               {est.owner && (
                 <>
@@ -1192,7 +1164,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                     <thead><tr><th>발주처 원가</th><th>내용</th><th>금액</th></tr></thead>
                     <tbody>
                       <tr><td>노무비</td><td>발주처 기준 투입 약 <b>{Math.round(est.owner.mm * 10) / 10}M/M</b> = {est.heads}명 × 평균 {Math.round(est.avgRatePlan * 100)}% × {est.months}개월</td><td>{est.won(est.owner.L0)}</td></tr>
-                      <tr><td>경비</td><td>장비·출연·외주·4대보험 등</td><td>{est.won(est.owner.E0)}</td></tr>
+                      <tr><td>경비</td><td>{est.model.kind === "cnstwk" ? "재료비·장비·안전관리비 등" : "자재·장비·외주·출장 등"}</td><td>{est.won(est.owner.E0)}</td></tr>
                       <tr><td>{est.owner.gaLabel}</td><td></td><td>{est.won(est.owner.G0)}</td></tr>
                       <tr><td>{est.owner.pLabel}</td><td></td><td>{est.won(est.owner.P0)}</td></tr>
                       <tr className="sum"><td>추정가격</td><td>부가세 제외</td><td>{est.fmt.supply}</td></tr>
@@ -1218,7 +1190,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   {est.inMM > 0 && <tr className="sub"><td>└ 그 외</td><td>노임단가</td><td></td><td></td><td>{est.exMM}</td><td>{est.won(est.exLabor)}</td></tr>}
                   <tr className="sum"><td>① 직접인건비</td><td></td><td>{est.heads}명</td><td>평균 {Math.round(est.avgRatePlan * 100)}%</td><td>평균 {Math.round(est.avgRateNeed * 100)}%</td><td>{est.fmt.labor}</td></tr>
                   <tr><td>② 법정부담금</td><td colSpan={4}>4대보험 사업주분 등, ①의 {Math.round(est.model.burden * 100)}%</td><td>{est.fmt.burden}</td></tr>
-                  <tr><td>③ 직접경비</td><td colSpan={4}>{est.model.ownFacility ? "자체 스튜디오·장비 사용(제외), 출연·외주·소모품" : "장비·스튜디오·출연·외주"} + 월 고정경비 {Math.round(est.model.fixedMonthly / 10000)}만원 × {est.months}개월</td><td>{est.fmt.direct}</td></tr>
+                  <tr><td>③ 직접경비</td><td colSpan={4}>{est.model.ownFacility ? "자체 시설·장비 사용(임차 제외), 자재·외주·소모품" : "자재·장비·외주·출장 등"} + 월 고정경비 {Math.round(est.model.fixedMonthly / 10000)}만원 × {est.months}개월</td><td>{est.fmt.direct}</td></tr>
                   <tr className="sum"><td>직접원가 (①+②+③)</td><td colSpan={4}></td><td>{est.fmt.total}</td></tr>
                   {est.supply && <>
                     <tr><td>추정가격</td><td colSpan={4}>부가세 제외</td><td>{est.fmt.supply}</td></tr>
@@ -1272,7 +1244,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
               <p className={`rp-conf c-${est.confidence}`}>추정 신뢰도 <b>{est.confidence}</b> — {est.basis}</p>
               {est.notes.map((x, i) => <p key={i} className="rp-note">{x}</p>)}
               <p className="rp-assume">
-                인건비는 적정 최대치: PM·교수설계 고급 {est.model.rate.고급.toLocaleString("ko-KR")}원, 촬영·편집·디자인 중급 {est.model.rate.중급.toLocaleString("ko-KR")}원, 자막·검수 초급 {est.model.rate.초급.toLocaleString("ko-KR")}원/일 × {est.model.days}일
+                인건비는 적정 최대치: 책임자 고급 {est.model.rate.고급.toLocaleString("ko-KR")}원, 실무 중급 {est.model.rate.중급.toLocaleString("ko-KR")}원, 보조 초급 {est.model.rate.초급.toLocaleString("ko-KR")}원/일 × {est.model.days}일
                 {est.model.custom ? " (회사 설정)" : ` (${LABOR.source})`}, 가용 인력 {est.model.teamMax}명.
                 {" "}<button className="mini" onClick={() => setEditCost(!editCost)}>{editCost ? "닫기" : "원가 기준 수정"}</button>
               </p>
@@ -1382,7 +1354,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
           <ul className="fstat">
             {fs.map((x, i) => (
               <li key={i} className={/읽음/.test(x.status) ? "ok" : "ng"}>
-                <span>{/읽음/.test(x.status) ? "✓" : "✕"}</span>{x.name} — {x.status}
+                <span>{/읽음/.test(x.status) ? "✓" : /(받기 실패|읽기 실패|시간 초과|읽기 오류)/.test(x.status) ? "↻" : "✕"}</span>{x.name} — {x.status}{/(받기 실패|읽기 실패|시간 초과|읽기 오류)/.test(x.status) ? " · 읽을 때까지 자동 재시도" : ""}
               </li>
             ))}
           </ul>
@@ -1405,7 +1377,7 @@ const PASS_REASONS = [
   ["qual", "참가 자격 미충족", "업종 등록·실적·지역·인력 요건"],
   ["profit", "수익성 부족", "예산 대비 원가·마진이 맞지 않음"],
   ["capacity", "일정·인력 부족", "다른 사업과 겹치거나 투입 인력이 없음"],
-  ["fit", "주력 분야 아님", "영상 비중이 낮거나 회사 강점과 거리가 멂"],
+  ["fit", "주력 분야 아님", "회사가 하는 일·강점과 거리가 멂"],
   ["terms", "요구 조건 부담", "과업량·기간·발표·대금 조건 등이 과함"],
 ];
 function PassDialog({ bid: b, onClose, onConfirm }) {
@@ -1507,8 +1479,6 @@ function BidRow({ bid: b, onUpdate, an, focused, detail, say, section }) {
 
       <div className="body">
         <a className="title" href={b.url} target="_blank" rel="noreferrer">
-          {(b.analysis?.video?.only ?? titleVideoOnly(b.title)) ? <span className="prio only">영상 제작</span>
-            : b.analysis?.video?.priority && <span className="prio">교수설계+영상</span>}
           {revised && <span className="revised">정정</span>}
           {b.title}
         </a>
