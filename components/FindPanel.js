@@ -39,7 +39,7 @@ function WordBox({ title, hint, words, placeholder, onAdd, onRemove, tone, pendi
   );
 }
 
-export default function FindPanel({ say, onChanged }) {
+export default function FindPanel({ say, onChanged, onFound }) {
   const [set, setSet] = useState(null); // { include, exclude, kinds }
   const [saving, setSaving] = useState(false);
   const [kind, setKind] = useState("servc");
@@ -80,7 +80,8 @@ export default function FindPanel({ say, onChanged }) {
     const name = words.map((w) => `'${w}'`).join(", ");
     if (left.size) say(`나라장터 응답 지연 · ${name} 최근 공고는 연결되는 대로 자동 수집${filled ? ` (${filled}건 수집됨)` : ""}`);
     else say(`${name} 최근 30일 공고 ${filled ? `${filled}건 수집` : "없음 · 새 공고부터 알림"}`);
-  }, [say, onChanged]);
+    if (filled) onFound?.(); // 모은 공고가 있으면 입찰 공고 탭으로 바로 이동
+  }, [say, onChanged, onFound]);
 
   const save = useCallback(async (patch, msg) => {
     setSaving(true);
@@ -119,6 +120,8 @@ export default function FindPanel({ say, onChanged }) {
         const r = await api(`/api/search?q=${encodeURIComponent(w)}&kind=${k}&days=30`);
         setRes({ q: w, kind: k, items: r.items || [] });
         setBusy(false);
+        // 결과가 보이도록 결과 카드로 이동
+        requestAnimationFrame(() => document.querySelector(".find-out")?.scrollIntoView({ behavior: "smooth", block: "start" }));
         return;
       } catch { if (i < 2) await new Promise((ok) => setTimeout(ok, 1500)); }
     }
@@ -138,29 +141,8 @@ export default function FindPanel({ say, onChanged }) {
   const t = trend[kind];
   return (
     <div className="find">
-      <section className="find-card">
-        <h3>내 키워드 <small>공고명 포함 시 10분마다 수집·알림</small></h3>
-        {!set ? <div className="empty">불러오는 중</div> : (
-          <>
-            <WordBox title="포함 단어" hint="하나라도 포함 시 수집" words={set.include} pending={pending} onRetry={(w) => fill([w])}
-              placeholder="예: 청소, 홍보영상, 태양광" onAdd={addInclude} onRemove={removeInclude} />
-            <WordBox title="제외 단어" hint="포함 시 수집 제외" words={set.exclude} tone="ex"
-              placeholder="예: 유지보수, 임차" onAdd={addExclude} onRemove={removeExclude} />
-            <div className="kw-box">
-              <div className="kw-head"><b>수집 대상</b><small>미선택 시 전체</small></div>
-              <div className="type-tabs">
-                {KINDS.map((k) => (
-                  <button key={k.key} type="button" className={(set.kinds || []).includes(k.key) ? "on" : ""} disabled={saving}
-                    aria-pressed={(set.kinds || []).includes(k.key)} onClick={() => toggleKind(k.key)}>{k.label}</button>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-      </section>
-
-      <section className="find-card">
-        <h3>나라장터 검색 <small>최근 30일 · 마감 전 공고</small></h3>
+      <section className="find-card find-hero">
+        <h3><span className="hero-kick">나라장터 공고 검색</span>원하는 단어로 바로 찾기<small>최근 30일 · 마감 전 공고만</small></h3>
         <div className="type-tabs" role="tablist" aria-label="공고 종류">
           {KINDS.map((k) => (
             <button key={k.key} role="tab" aria-selected={kind === k.key} className={kind === k.key ? "on" : ""}
@@ -189,7 +171,9 @@ export default function FindPanel({ say, onChanged }) {
             </div>
           )}
         </div>
-
+      </section>
+      {(busy || err || res) && (
+        <section className="find-card find-out">
         {busy && <div className="find-busy" role="status"><span className="dot on" aria-hidden />‘{q}’ {LABEL[kind]} 공고 검색 중</div>}
         {err && <div className="empty">{err}</div>}
         {res && !busy && (
@@ -220,6 +204,27 @@ export default function FindPanel({ say, onChanged }) {
               </ul>
             )}
           </div>
+        )}
+        </section>
+      )}
+      <section className="find-card">
+        <h3>내 키워드 <small>공고명 포함 시 10분마다 수집·알림</small></h3>
+        {!set ? <div className="empty">불러오는 중</div> : (
+          <>
+            <WordBox title="포함 단어" hint="하나라도 포함 시 수집" words={set.include} pending={pending} onRetry={(w) => fill([w])}
+              placeholder="예: 청소, 홍보영상, 태양광" onAdd={addInclude} onRemove={removeInclude} />
+            <WordBox title="제외 단어" hint="포함 시 수집 제외" words={set.exclude} tone="ex"
+              placeholder="예: 유지보수, 임차" onAdd={addExclude} onRemove={removeExclude} />
+            <div className="kw-box">
+              <div className="kw-head"><b>수집 대상</b><small>미선택 시 전체</small></div>
+              <div className="type-tabs">
+                {KINDS.map((k) => (
+                  <button key={k.key} type="button" className={(set.kinds || []).includes(k.key) ? "on" : ""} disabled={saving}
+                    aria-pressed={(set.kinds || []).includes(k.key)} onClick={() => toggleKind(k.key)}>{k.label}</button>
+                ))}
+              </div>
+            </div>
+          </>
         )}
       </section>
     </div>
