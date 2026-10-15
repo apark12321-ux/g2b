@@ -1,25 +1,32 @@
 :root {
-  --paper: #eef1f0;
+  /* 입찰픽 디자인 기준 색 */
+  --paper: #f4f5f7;
   --sheet: #ffffff;
-  --ink: #18212b;
-  --muted: #5e6b78;
-  --line: #d5dbe0;
-  --seal: #c23b2e;      /* 인주: 임박·참여 */
-  --indigo: #2f4a9e;    /* 감청: 검토·주요 동작 */
-  --pass: #8a939c;
-  --radius: 10px;
+  --ink: #111418;
+  --muted: #6b7684;
+  --line: #e5e8eb;
+  --seal: #f04452;      /* 임박·경고 */
+  --indigo: #2f6bff;    /* 주요 동작 */
+  --ok: #00a661;
+  --warn: #ff8a00;
+  --pass: #8b95a1;
+  --radius: 16px;
+  --shadow: 0 1px 2px rgba(17,20,24,.04), 0 4px 14px rgba(17,20,24,.05);
   --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #12171d;
-    --sheet: #1a2129;
-    --ink: #e6ebf0;
-    --muted: #95a2af;
-    --line: #2c3640;
-    --seal: #e0675b;
-    --indigo: #8aa2ec;
+    --paper: #101215;
+    --sheet: #1b1e23;
+    --ink: #f2f4f6;
+    --muted: #9aa4b0;
+    --line: #2b3037;
+    --seal: #ff6b76;
+    --indigo: #5b8cff;
+    --ok: #2fd08a;
+    --warn: #ffa53d;
     --pass: #6f7a85;
+    --shadow: none;
   }
 }
 
@@ -1241,3 +1248,81 @@ ul.rec-list small em { font-style: normal; opacity: .75; }
 html, body { overflow-x: clip; }
 .wrap, .list { min-width: 0; }
 input, select, textarea { font-size: max(16px, 1em); } /* 아이폰 입력 시 자동 확대 방지 */
+
+/* ════════ 입찰픽 디자인 · 반응형 정리 ════════ */
+/* PC: 탭마다 스크롤바가 생겼다 사라지며 화면이 좌우로 흔들리는 현상 방지 */
+html { scrollbar-gutter: stable; }
+body { font-size: 15px; letter-spacing: -0.01em; }
+
+/* 상단바: 본문 폭(1000px)과 같은 선에 맞춤 */
+.nav { padding-left: max(20px, calc((100% - 1000px) / 2)); padding-right: max(20px, calc((100% - 1000px) / 2));
+  background: color-mix(in srgb, var(--paper) 86%, transparent); border-bottom: 0; box-shadow: 0 1px 0 var(--line); }
+.brand-seal { border: 0; border-radius: 10px; background: var(--indigo); color: #fff; transform: none; font-weight: 800; }
+.brand-name { font-weight: 800; letter-spacing: -0.03em; }
+
+/* 큰 탭 */
+.sections button { color: #b0b8c1; font-weight: 800; letter-spacing: -0.03em; border-bottom-width: 3px; }
+.sections button.on { color: var(--ink); border-bottom-color: var(--indigo); }
+.sec-n { background: var(--seal); font-weight: 700; }
+.sec-n.join { background: var(--ok); }
+
+/* 카드 공통: 흰 바탕 · 둥근 모서리 · 옅은 그림자 */
+.bid, .report, .find-card, .sc-block, .empty { border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: var(--radius); box-shadow: var(--shadow); }
+.report { padding: 22px 24px 16px; }
+.rp-head { border-bottom-width: 1px; border-bottom-color: var(--line); }
+.empty { border-style: solid; }
+.bid.focused, .report.focused { border-color: var(--indigo); box-shadow: 0 0 0 3px color-mix(in srgb, var(--indigo) 18%, transparent); }
+
+/* 버튼·입력 */
+.btn { border-radius: 12px; font-weight: 600; border-color: var(--line); }
+.btn.primary { background: var(--indigo); border-color: var(--indigo); }
+.btn.primary:disabled { opacity: .45; }
+.field { border-radius: 12px; padding: 10px 14px; border-color: var(--line); transition: border-color .15s, box-shadow .15s; }
+.field:focus { outline: none; border-color: var(--indigo); box-shadow: 0 0 0 3px color-mix(in srgb, var(--indigo) 16%, transparent); }
+.mini { border-radius: 8px; }
+
+/* 칩 */
+.org-tabs button, .tabs button, .pop-chips button, .type-tabs button { border-radius: 999px; }
+.org-tabs button { background: var(--sheet); border-color: var(--line); padding: 6px 13px; }
+.org-tabs button.on, .tabs button.on { background: var(--indigo); border-color: var(--indigo); color: #fff; }
+.tabs { border-radius: 999px; border-color: var(--line); }
+.chip { border-radius: 999px; }
+.chip.by-rule { background: color-mix(in srgb, var(--indigo) 10%, transparent); color: var(--indigo); }
+
+/* D-day */
+.dday { border-right: 1px solid var(--line); }
+.dday.urgent b { color: var(--seal); }
+.rp-dday { border: 0; border-radius: 999px; padding: 1px 9px; color: #fff; background: var(--ok); letter-spacing: 0; }
+.rp-dday.urgent { color: #fff; background: var(--seal); }
+
+/* 찾기: 입찰픽 첫 화면처럼 파란 검색 카드 */
+.find-hero { background: linear-gradient(135deg, #2f6bff 0%, #2459eb 100%); color: #fff; border: 0; padding: 24px 22px; position: relative; overflow: hidden; }
+.find-hero::after { content: ""; position: absolute; right: -60px; top: -60px; width: 200px; height: 200px; border-radius: 50%; background: rgba(255,255,255,.08); pointer-events: none; }
+.find-hero > h3 { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.3; margin-bottom: 16px; }
+.find-hero > h3 small { color: rgba(255,255,255,.8); font-size: 14px; margin-top: 6px; }
+.hero-kick { display: block; font-size: 12.5px; font-weight: 700; color: rgba(255,255,255,.75); margin-bottom: 6px; letter-spacing: 0; }
+.find-hero .type-tabs button { background: rgba(255,255,255,.14); border: 0; color: #fff; }
+.find-hero .type-tabs button.on { background: #fff; color: var(--indigo); font-weight: 700; }
+.find-hero .find-bar { background: #fff; border-radius: 14px; padding: 6px; gap: 6px; position: relative; z-index: 1; }
+.find-hero .find-bar .field { border: 0; box-shadow: none; background: transparent; color: #111418; }
+.find-hero .find-bar .btn.primary { border-radius: 10px; padding: 9px 18px; }
+.find-hero .pop-label { color: rgba(255,255,255,.8); }
+.find-hero .pop-chips button { background: rgba(255,255,255,.16); border: 0; color: #fff; }
+.find-hero .pop-chips button:hover { background: rgba(255,255,255,.28); color: #fff; }
+.find-hero .pop-chips button span { color: rgba(255,255,255,.75); }
+.find-out { scroll-margin-top: calc(var(--stick, 120px) + 12px); }
+.find-out .find-res { margin-top: 0; border-top: 0; padding-top: 0; }
+.find-list li { border-radius: 14px; border-color: var(--line); background: var(--sheet); transition: border-color .15s; }
+.find-list li:hover { border-color: var(--indigo); }
+.kw-chip { background: color-mix(in srgb, var(--indigo) 10%, transparent); color: var(--indigo); }
+
+/* 반응형: 태블릿·모바일 */
+@media (max-width: 1080px) { .nav { padding-left: 20px; padding-right: 20px; } }
+@media (max-width: 640px) {
+  .wrap { padding-left: 14px; padding-right: 14px; }
+  .nav { padding-left: 14px; padding-right: 14px; }
+  .report { padding: 18px 16px 14px; }
+  .find-hero { padding: 20px 16px; }
+  .find-hero > h3 { font-size: 22px; }
+  .bid { border-radius: 14px; }
+}

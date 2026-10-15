@@ -421,7 +421,7 @@ export default function Home() {
       )}
 
       <div className="list">
-        {section === "find" && <FindPanel say={say} onChanged={load} />}
+        {section === "find" && <FindPanel say={say} onChanged={load} onFound={async () => { await load(); setSection("bids"); toTop(); }} />}
         {section === "schedule" && data && (
           <ScheduleBoard bids={base.filter((b) => b.status !== "pass")}
             onOpen={(b) => (b.status === "review" || b.status === "join" ? openReport(b.key) : (setSection("bids"), setFocus(b.key)))} />
