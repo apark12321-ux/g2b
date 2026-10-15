@@ -16,7 +16,6 @@ export default function PyjLogo({ tone = "brand", size = 72, sub = "WORKS" }) {
   return (
     <span className={`pyj pyj-${tone}`}>
       <PyjMark size={size} color={tone === "white" ? "#fff" : "var(--pyj, #3a3a9e)"} />
-      <span className="pyj-name">PARK YE JUN</span>
       {sub && <span className="pyj-sub">{sub}</span>}
     </span>
   );
