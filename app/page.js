@@ -1166,7 +1166,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
               {est.owner && (
                 <>
                   <p className="rp-plan-note">발주처가 이미 계산해 둔 예산을 풀어서, <b>그 노무비만큼 인력을 배치</b>하는 것을 기준으로 봅니다. ({est.owner.source})</p>
-                  <table className="rp-mm rp-owner">
+                  <div className="tbl"><table className="rp-mm rp-owner">
                     <thead><tr><th>발주처 원가</th><th>내용</th><th>금액</th></tr></thead>
                     <tbody>
                       <tr><td>노무비</td><td>발주처 기준 투입 약 <b>{Math.round(est.owner.mm * 10) / 10}M/M</b> = {est.heads}명 × 평균 {Math.round(est.avgRatePlan * 100)}% × {est.months}개월</td><td>{est.won(est.owner.L0)}</td></tr>
@@ -1175,7 +1175,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                       <tr><td>{est.owner.pLabel}</td><td></td><td>{est.won(est.owner.P0)}</td></tr>
                       <tr className="sum"><td>추정가격</td><td>부가세 제외</td><td>{est.fmt.supply}</td></tr>
                     </tbody>
-                  </table>
+                  </table></div>
                 </>
               )}
               <div className="rp-kpis">
@@ -1188,14 +1188,14 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                 <div className={est.margin === null ? "" : est.margin < 0 ? "bad" : est.margin < 0.1 ? "warn" : "good"}><span>예상 마진</span><b>{est.margin === null ? "-" : `${Math.round(est.margin * 100)}%`}</b>
                   <small>{est.margin === null ? "가격 미공개" : `순이익 ${Math.round((est.net / est.supply) * 100)}%`}</small></div>
               </div>
-              <table className="rp-mm">
-                <thead><tr><th>역할 (수행 계획)</th><th>등급</th><th>인원</th><th>투입률</th><th>회사 기준</th><th>인건비</th></tr></thead>
+              <div className="tbl"><table className="rp-mm rp-roles">
+                <thead><tr><th>역할 (수행 계획)</th><th>등급</th><th>인원</th><th>투입률</th><th>필요 투입률</th><th>인건비</th></tr></thead>
                 <tbody>
-                  {est.table.map((x, i) => <tr key={i}><td>{x.role}</td><td>{x.grade}</td><td>{x.heads}명</td><td>{Math.round(x.rate * 100)}%</td><td className={x.needRate > x.rate * 1.25 ? "neg" : ""}>{Math.round(x.needRate * 100)}%</td><td>{est.won(x.cost)}</td></tr>)}
+                  {est.table.map((x, i) => <tr key={i}><td>{x.role}<small className="mon">월 {Math.round(x.monthly / 10000).toLocaleString("ko-KR")}만원{x.burden === 0.19 ? " · 직종 임금" : " · 노임단가"}</small></td><td>{x.grade}</td><td>{x.heads}명</td><td>{Math.round(x.rate * 100)}%</td><td className={x.needRate > x.rate * 1.25 ? "neg" : ""}>{Math.round(x.needRate * 100)}%</td><td>{est.won(x.cost)}</td></tr>)}
                   {est.inMM > 0 && <tr className="sub"><td>└ 내부 제작 인력</td><td>회사 설정 인건비</td><td></td><td></td><td>{est.inMM}</td><td>{est.won(est.inLabor)}</td></tr>}
                   {est.inMM > 0 && <tr className="sub"><td>└ 그 외</td><td>노임단가</td><td></td><td></td><td>{est.exMM}</td><td>{est.won(est.exLabor)}</td></tr>}
                   <tr className="sum"><td>① 직접인건비</td><td></td><td>{est.heads}명</td><td>평균 {Math.round(est.avgRatePlan * 100)}%</td><td>평균 {Math.round(est.avgRateNeed * 100)}%</td><td>{est.fmt.labor}</td></tr>
-                  <tr><td>② 법정부담금</td><td colSpan={4}>4대보험 사업주분 등, ①의 {Math.round(est.model.burden * 100)}%</td><td>{est.fmt.burden}</td></tr>
+                  <tr><td>② 법정부담금</td><td colSpan={4}>{est.burdenNote}</td><td>{est.fmt.burden}</td></tr>
                   <tr><td>③ 직접경비</td><td colSpan={4}>{est.model.ownFacility ? "자체 시설·장비 사용(임차 제외), 자재·외주·소모품" : "자재·장비·외주·출장 등"} + 월 고정경비 {Math.round(est.model.fixedMonthly / 10000)}만원 × {est.months}개월</td><td>{est.fmt.direct}</td></tr>
                   <tr className="sum"><td>직접원가 (①+②+③)</td><td colSpan={4}></td><td>{est.fmt.total}</td></tr>
                   {est.supply && <>
@@ -1206,11 +1206,11 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                     <tr className="sub"><td>└ 순이익</td><td colSpan={4}>{Math.round((est.net / est.supply) * 100)}%</td><td className={est.net < 0 ? "neg" : ""}>{est.fmt.net}</td></tr>
                   </>}
                 </tbody>
-              </table>
+              </table></div>
               {est.items?.length > 0 && (
                 <div className="rp-items">
                   <h4>제안요청서에서 찾은 비용 항목 <small>체크를 끄면 원가에서 뺍니다</small></h4>
-                  <table className="rp-mm">
+                  <div className="tbl"><table className="rp-mm rp-itemtbl">
                     <thead><tr><th></th><th>항목</th><th>근거 (제안요청서)</th><th>반영</th></tr></thead>
                     <tbody>
                       {est.items.map((x) => (
@@ -1229,7 +1229,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 </div>
               )}
               <p className="rp-period">
@@ -1265,7 +1265,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
             return (
               <details className="rp-fold"><summary>대금 지급 · 운영 조건 <small>{p.method || "읽은 문서에 지급 조건 없음"}</small></summary>
                 
-                <table className="rp-mm rp-pay">
+                <div className="tbl"><table className="rp-mm rp-pay">
                   <tbody>
                     <Row k="지급 방식" v={<b>{p.method || "읽은 문서에 지급 조건이 없습니다"}</b>} />
                     <Row k="선금" v={p.advance ? (p.advance.has ? "문서에 선금 조항 있음 (아래 원문)" : "선금 미지급 (아래 원문)") : "문서에서 확인되지 않음"} ev={p.advance?.text} />
@@ -1277,7 +1277,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                     {p.lateFee && <Row k="지체상금" v={p.lateFee.rate ? `1일 ${p.lateFee.rate}` : "있음"} ev={p.lateFee.text} />}
                     {cash && <tr className="sum"><td>자금 선투입</td><td>대금 받기 전 회사가 먼저 쓰는 돈 약 <b>{est.won(cash.peak)}</b> (월 약 {est.won(cash.monthly)} × {est.months}개월{cash.adv > 0 ? `, 선금 ${est.won(cash.adv)} 반영` : ""}) · 수령까지 약 {Math.round(cash.waitMonths * 10) / 10}개월</td></tr>}
                   </tbody>
-                </table>
+                </table></div>
               </details>
             );
           })()}
@@ -1296,7 +1296,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
           {risks.length > 0 && (
           <details className="rp-fold"><summary>걸리는 점 전체 <small>{risks.length}건</small></summary>
               
-              <table className="rp-risk">
+              <div className="tbl"><table className="rp-risk">
                 <thead><tr><th>수준</th><th>항목</th><th>근거</th></tr></thead>
                 <tbody>
                   {risks.map((x, i) => (
@@ -1307,7 +1307,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </details>
           )}
 
