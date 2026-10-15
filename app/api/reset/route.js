@@ -25,7 +25,7 @@ export async function GET(req) {
   if (keep) {
     const { data } = await supa.from("bids").select("bid_no, status, memo, analysis").neq("status", "new");
     saved = (data || []).map((b) => ({
-      bid_no: b.bid_no, status: b.status, memo: b.memo || null,
+      bid_no: b.bid_no, status: b.status, memo: b.memo || "",
       keepA: { checked: b.analysis?.checked, costOff: b.analysis?.costOff, periodMonths: b.analysis?.periodMonths },
     }));
     await supa.from("app_settings").upsert({ key: "reset_backup", value: JSON.stringify({ at: new Date().toISOString(), saved }) });
