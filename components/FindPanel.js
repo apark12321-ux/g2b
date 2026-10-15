@@ -1,5 +1,6 @@
 "use client";
 // 찾기: 내 키워드 관리 + 나라장터 공고 바로 검색 + 업무구분별 주요 키워드
+// 문구는 짧은 음슴체로
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/components/api";
 import { money, dday, at } from "@/components/format";
@@ -13,7 +14,7 @@ const KINDS = [
 const LABEL = Object.fromEntries(KINDS.map((k) => [k.key, k.label]));
 const clean = (s) => String(s || "").replace(/\s+/g, " ").trim().slice(0, 30);
 
-function WordBox({ title, hint, words, placeholder, onAdd, onRemove, tone }) {
+function WordBox({ title, hint, words, placeholder, onAdd, onRemove, tone, pending }) {
   const [v, setV] = useState("");
   const add = () => { const w = clean(v); if (w) { onAdd(w); setV(""); } };
   return (
@@ -23,10 +24,11 @@ function WordBox({ title, hint, words, placeholder, onAdd, onRemove, tone }) {
         {words.map((w) => (
           <span key={w} className={`kw-chip ${tone || ""}`}>
             {w}
+            {pending === w && <em className="kw-busy">수집 중</em>}
             <button type="button" aria-label={`${w} 삭제`} onClick={() => onRemove(w)}>×</button>
           </span>
         ))}
-        {!words.length && <span className="kw-empty">아직 없습니다</span>}
+        {!words.length && <span className="kw-empty">없음</span>}
       </div>
       <form className="kw-add" onSubmit={(e) => { e.preventDefault(); add(); }}>
         <input className="field" value={v} onChange={(e) => setV(e.target.value)} placeholder={placeholder} maxLength={30} enterKeyHint="done" />
@@ -45,6 +47,7 @@ export default function FindPanel({ say, onChanged }) {
   const [res, setRes] = useState(null); // { q, kind, items } | null
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [pending, setPending] = useState(""); // 방금 등록해 최근 30일 공고를 모으는 중인 단어
 
   useEffect(() => { api("/api/keywords").then(setSet).catch((e) => setErr(e.message)); }, []);
   useEffect(() => {
@@ -52,32 +55,37 @@ export default function FindPanel({ say, onChanged }) {
     api(`/api/trending?kind=${kind}`).then((t) => setTrend((m) => ({ ...m, [kind]: t }))).catch(() => {});
   }, [kind, trend]);
 
-  const save = useCallback(async (patch, msg) => {
+  const save = useCallback(async (patch, msg, word = "") => {
     setSaving(true);
+    setSet((cur) => (cur ? { ...cur, ...patch } : cur)); // 누르자마자 화면에 반영 (저장·수집은 뒤에서)
+    if (word) setPending(word);
     try {
       const r = await api("/api/keywords", { method: "PUT", body: JSON.stringify(patch) });
       setSet({ include: r.include || [], exclude: r.exclude || [], kinds: r.kinds || [] });
-      say(r.added?.length ? `${msg}${r.filled ? ` — 최근 30일 공고 ${r.filled}건을 입찰 공고에 담았습니다` : " — 최근 30일에는 맞는 공고가 없었습니다"}` : msg);
+      say(r.added?.length ? `${msg}${r.filled ? ` · 최근 30일 공고 ${r.filled}건 수집` : " · 최근 30일 해당 공고 없음"}` : msg);
       onChanged?.();
-    } catch (e) { say(`저장하지 못했습니다: ${e.message}`, true); }
-    finally { setSaving(false); }
+    } catch (e) {
+      say(`저장 실패: ${e.message}`, true);
+      api("/api/keywords").then(setSet).catch(() => {}); // 실패하면 저장된 상태로 되돌림
+    }
+    finally { setSaving(false); setPending(""); }
   }, [say, onChanged]);
 
   const has = (list, w) => list.some((x) => x.replace(/\s/g, "") === w.replace(/\s/g, ""));
-  const addInclude = (w) => set && !has(set.include, w) && save({ include: [...set.include, w] }, `'${w}' 키워드를 등록했습니다`);
-  const removeInclude = (w) => save({ include: set.include.filter((x) => x !== w) }, `'${w}' 키워드를 지웠습니다`);
-  const addExclude = (w) => set && !has(set.exclude, w) && save({ exclude: [...set.exclude, w] }, `'${w}'가 들어간 공고는 빼겠습니다`);
-  const removeExclude = (w) => save({ exclude: set.exclude.filter((x) => x !== w) }, `제외어 '${w}'를 지웠습니다`);
+  const addInclude = (w) => set && !has(set.include, w) && save({ include: [...set.include, w] }, `'${w}' 등록 완료`, w);
+  const removeInclude = (w) => save({ include: set.include.filter((x) => x !== w) }, `'${w}' 삭제`);
+  const addExclude = (w) => set && !has(set.exclude, w) && save({ exclude: [...set.exclude, w] }, `제외어 '${w}' 등록`);
+  const removeExclude = (w) => save({ exclude: set.exclude.filter((x) => x !== w) }, `제외어 '${w}' 삭제`);
   const toggleKind = (k) => {
     const cur = set.kinds || [];
     const next = cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k];
-    save({ kinds: next }, next.length ? `${next.map((x) => LABEL[x]).join("·")} 공고만 모읍니다` : "모든 종류의 공고를 모읍니다");
+    save({ kinds: next }, next.length ? `${next.map((x) => LABEL[x]).join("·")}만 수집` : "전체 종류 수집");
   };
 
   const search = async (word = q, k = kind) => {
     const w = clean(word);
     if (!w) return;
-    setQ(w); setBusy(true); setErr("");
+    setQ(w); setBusy(true); setErr(""); setRes(null);
     try {
       const r = await api(`/api/search?q=${encodeURIComponent(w)}&kind=${k}&days=30`);
       setRes({ q: w, kind: k, items: r.items || [] });
@@ -89,24 +97,24 @@ export default function FindPanel({ say, onChanged }) {
     try {
       await api("/api/search/save", { method: "POST", body: JSON.stringify({ row, keyword: res?.q }) });
       setRes((r) => ({ ...r, items: r.items.map((x) => (x.key === row.key ? { ...x, saved: "review" } : x)) }));
-      say("검토·분석에 담았습니다. 첨부 문서 분석을 시작합니다.");
+      say("검토 담기 완료 · 첨부 분석 시작");
       onChanged?.();
-    } catch (e) { say(`담지 못했습니다: ${e.message}`, true); }
+    } catch (e) { say(`담기 실패: ${e.message}`, true); }
   };
 
   const t = trend[kind];
   return (
     <div className="find">
       <section className="find-card">
-        <h3>내 키워드 <small>공고명에 이 단어가 들어간 새 공고를 10분마다 모으고 알려 드립니다</small></h3>
+        <h3>내 키워드 <small>공고명 포함 시 10분마다 수집·알림</small></h3>
         {!set ? <div className="empty">불러오는 중</div> : (
           <>
-            <WordBox title="찾을 단어" hint="하나라도 들어 있으면 모읍니다" words={set.include}
+            <WordBox title="포함 단어" hint="하나라도 포함 시 수집" words={set.include} pending={pending}
               placeholder="예: 청소, 홍보영상, 태양광" onAdd={addInclude} onRemove={removeInclude} />
-            <WordBox title="뺄 단어" hint="이 단어가 들어간 공고는 모으지 않습니다" words={set.exclude} tone="ex"
+            <WordBox title="제외 단어" hint="포함 시 수집 제외" words={set.exclude} tone="ex"
               placeholder="예: 유지보수, 임차" onAdd={addExclude} onRemove={removeExclude} />
             <div className="kw-box">
-              <div className="kw-head"><b>모을 공고 종류</b><small>아무것도 고르지 않으면 전부 모읍니다</small></div>
+              <div className="kw-head"><b>수집 대상</b><small>미선택 시 전체</small></div>
               <div className="type-tabs">
                 {KINDS.map((k) => (
                   <button key={k.key} type="button" className={(set.kinds || []).includes(k.key) ? "on" : ""} disabled={saving}
@@ -119,7 +127,7 @@ export default function FindPanel({ say, onChanged }) {
       </section>
 
       <section className="find-card">
-        <h3>나라장터에서 찾기 <small>최근 30일 공고 · 마감 전인 것만</small></h3>
+        <h3>나라장터 검색 <small>최근 30일 · 마감 전 공고</small></h3>
         <div className="type-tabs" role="tablist" aria-label="공고 종류">
           {KINDS.map((k) => (
             <button key={k.key} role="tab" aria-selected={kind === k.key} className={kind === k.key ? "on" : ""}
@@ -128,20 +136,20 @@ export default function FindPanel({ say, onChanged }) {
         </div>
         <form className="find-bar" onSubmit={(e) => { e.preventDefault(); search(); }}>
           <input className="field search" type="search" value={q} onChange={(e) => setQ(e.target.value)}
-            placeholder={`${LABEL[kind]} 공고명으로 찾기`} enterKeyHint="search" />
-          <button className="btn primary" type="submit" disabled={busy || !clean(q)}>{busy ? "찾는 중" : "찾기"}</button>
+            placeholder={`${LABEL[kind]} 공고명 검색`} enterKeyHint="search" />
+          <button className="btn primary" type="submit" disabled={busy || !clean(q)}>{busy ? "검색 중" : "검색"}</button>
         </form>
 
         <div className="pop">
           <div className="pop-row">
-            <span className="pop-label">많이 찾는 키워드</span>
+            <span className="pop-label">인기 키워드</span>
             <div className="pop-chips">
               {(t?.popular || []).map((w) => <button key={w} type="button" onClick={() => search(w)}>{w}</button>)}
             </div>
           </div>
           {(t?.recent || []).length > 0 && (
             <div className="pop-row">
-              <span className="pop-label">오늘 많이 올라온 말</span>
+              <span className="pop-label">오늘 많이 나온 단어</span>
               <div className="pop-chips">
                 {t.recent.map(({ w, n }) => <button key={w} type="button" onClick={() => search(w)}>{w}<span>{n}</span></button>)}
               </div>
@@ -149,16 +157,17 @@ export default function FindPanel({ say, onChanged }) {
           )}
         </div>
 
-        {err && <div className="empty"><strong>찾지 못했습니다</strong>{err}</div>}
-        {res && (
+        {busy && <div className="find-busy" role="status"><span className="dot on" aria-hidden />‘{q}’ {LABEL[kind]} 공고 검색 중</div>}
+        {err && <div className="empty"><strong>검색 실패</strong>{err}</div>}
+        {res && !busy && (
           <div className="find-res">
             <div className="find-res-head">
               <b>‘{res.q}’ {LABEL[res.kind]} 공고 {res.items.length}건</b>
               {set && !has(set.include, res.q)
-                ? <button className="mini" type="button" disabled={saving} onClick={() => addInclude(res.q)}>이 단어로 알림 받기</button>
-                : <span className="kw-on">알림 받는 키워드</span>}
+                ? <button className="mini" type="button" disabled={saving} onClick={() => addInclude(res.q)}>알림 등록</button>
+                : <span className="kw-on">알림 등록됨</span>}
             </div>
-            {!res.items.length ? <div className="empty">마감 전인 공고가 없습니다. 다른 종류(용역·물품·공사·외자)도 눌러 보세요.</div> : (
+            {!res.items.length ? <div className="empty">마감 전 공고 없음 · 다른 종류(용역·물품·공사·외자)도 확인</div> : (
               <ul className="find-list">
                 {res.items.map((b) => (
                   <li key={b.key}>
@@ -171,7 +180,7 @@ export default function FindPanel({ say, onChanged }) {
                     <div className="find-act">
                       {b.saved && b.saved !== "pass"
                         ? <span className="kw-on">{b.saved === "join" ? "참여 중" : b.saved === "review" ? "검토 중" : "담긴 공고"}</span>
-                        : <button className="btn" type="button" onClick={() => keep(b)}>검토에 담기</button>}
+                        : <button className="btn" type="button" onClick={() => keep(b)}>검토 담기</button>}
                     </div>
                   </li>
                 ))}
