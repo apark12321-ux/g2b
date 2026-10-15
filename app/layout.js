@@ -1,6 +1,7 @@
 import "./globals.css";
 import Nav from "@/components/Nav";
 import RegisterSW from "@/components/RegisterSW";
+import PyjLogo from "@/components/PyjLogo";
 
 export const metadata = {
   title: "나라장터 입찰알림",
@@ -10,7 +11,7 @@ export const metadata = {
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
-export const viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#2F4A9E" };
+export const viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#245BEB" };
 
 export default function RootLayout({ children }) {
   return (
@@ -24,11 +25,16 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
+        {/* 첫 화면: 파란 화면이 아주 잠시 보인 뒤 사라짐 (CSS만으로 동작 — 스크립트 로딩 전에도 보임) */}
+        <div className="splash" aria-hidden="true">
+          <div className="splash-title"><span>입찰</span><span>알림</span></div>
+          <div className="splash-foot"><PyjLogo tone="white" size={46} /></div>
+        </div>
         <RegisterSW />
         <Nav />
         <main className="wrap">{children}</main>
-        {/* 운영사 표기 */}
-        <footer className="corp">Made by P. Yejun</footer>
+        {/* 제작자 표기 */}
+        <footer className="corp"><small>Made by</small><PyjLogo size={34} /></footer>
       </body>
     </html>
   );

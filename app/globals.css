@@ -1195,3 +1195,26 @@ ul.rec-list small em { font-style: normal; opacity: .75; }
 /* 찾기: 수집 중·검색 중 표시 */
 .kw-busy { font-style: normal; font-size: 11px; color: #b7791f; margin-left: 4px; }
 .find-busy { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 14px; border-radius: 10px; background: var(--paper); color: var(--muted); font-size: 14px; }
+.kw-retry { border: 0; background: none; padding: 0 2px; font-size: 11px; color: var(--indigo); text-decoration: underline; cursor: pointer; }
+
+/* ── PYJ 로고 ── */
+.pyj { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1; }
+.pyj-name { font-weight: 800; letter-spacing: .02em; font-size: 12px; color: var(--ink); }
+.pyj-sub { font-size: 8px; letter-spacing: .6em; margin-right: -.6em; color: var(--muted); }
+.pyj-white .pyj-name, .pyj-white .pyj-sub { color: #fff; }
+.pyj-white .pyj-sub { opacity: .8; }
+.corp { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px 0 28px; }
+.corp > small { font-size: 9.5px; color: var(--muted); letter-spacing: .04em; }
+.corp .pyj-name { font-size: 10px; } .corp .pyj-sub { font-size: 7px; }
+:root { --pyj: #3a3a9e; }
+@media (prefers-color-scheme: dark) { :root { --pyj: #9aa6ff; } }
+
+/* ── 첫 화면 (파란 화면 잠깐 → 사이트) ── */
+.splash { position: fixed; inset: 0; z-index: 9999; background: #245BEB; color: #fff; display: flex; align-items: center; justify-content: center;
+  animation: splash-out .45s ease 1s forwards; pointer-events: none; }
+.splash-title { display: flex; flex-direction: column; font-size: 46px; font-weight: 800; line-height: 1.02; letter-spacing: -.04em; }
+.splash-title span + span { margin-left: .9em; margin-top: -.12em; }
+.splash-foot { position: absolute; left: 0; right: 0; bottom: calc(40px + env(safe-area-inset-bottom)); display: flex; justify-content: center; }
+@keyframes splash-out { to { opacity: 0; visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .splash { animation-duration: .01s; animation-delay: .6s; } }
+@media print { .splash { display: none; } }
