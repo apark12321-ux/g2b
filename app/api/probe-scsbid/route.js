@@ -25,7 +25,7 @@ async function call(url) {
       total: body?.totalCount,
       keys: items?.[0] ? Object.keys(items[0]) : null,
       sample: items?.[0] || null,
-      raw: j ? undefined : text.slice(0, 300),
+      raw: items?.[0] ? undefined : text.slice(0, 300),
     };
   } catch (e) {
     return { error: e.name === "AbortError" ? "timeout" : e.message };
@@ -56,5 +56,10 @@ export async function GET(req) {
     }
     if (list.keys) break;
   }
+  // 공공데이터개방표준서비스 낙찰정보 (개찰일 기준)
+  const std = { opengBgnDt: kst(start), opengEndDt: kst(end), bsnsDivCd: "5" };
+  out["ao:getDataSetOpnStdScsbidInfo"] = await call(`https://apis.data.go.kr/1230000/ao/PubDataOpnStdService/getDataSetOpnStdScsbidInfo?${p(std)}`);
+  // 입찰공고정보서비스 기초금액
+  out["ad:getBidPblancListInfoServcBsisAmount"] = await call(`https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServcBsisAmount?${p(range)}`);
   return NextResponse.json(out);
 }
