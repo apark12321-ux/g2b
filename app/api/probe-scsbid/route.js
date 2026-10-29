@@ -61,5 +61,12 @@ export async function GET(req) {
   out["ao:getDataSetOpnStdScsbidInfo"] = await call(`https://apis.data.go.kr/1230000/ao/PubDataOpnStdService/getDataSetOpnStdScsbidInfo?${p(std)}`);
   // 입찰공고정보서비스 기초금액
   out["ad:getBidPblancListInfoServcBsisAmount"] = await call(`https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServcBsisAmount?${p(range)}`);
+  const lst = await call(`https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfo${kind}?${p({ ...range, numOfRows: "1" })}`);
+  out["ad:list:keys"] = lst.keys;
+  out["ad:list:rate"] = lst.sample && Object.fromEntries(Object.entries(lst.sample).filter(([k]) => /Rate|Lwlt|bssamt|presmpt|Mthd|prearng|PrceRng/i.test(k)));
+  if (q.get("no")) {
+    const one = { inqryDiv: "2", bidNtceNo: q.get("no") };
+    out["ad:bsis:one"] = await call(`https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfo${kind}BsisAmount?${p(one)}`);
+  }
   return NextResponse.json(out);
 }
