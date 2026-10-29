@@ -9,6 +9,7 @@ import { jointReview } from "@/lib/joint";
 import { estimateCost, COST, LABOR, UNIT, costModel } from "@/lib/cost";
 import { kindBuckets, kindBucketOf } from "@/lib/work-type";
 import FindPanel from "@/components/FindPanel";
+import BidPrice from "@/components/BidPrice";
 
 const TABS = [
   ["all", "전체"],
@@ -1117,6 +1118,8 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
               </section>
             );
           })()}
+
+          <BidPrice bid={b} H={H} />
 
           {a.facts ? (
             <section className="rp-facts">
