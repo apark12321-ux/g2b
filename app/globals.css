@@ -1206,16 +1206,13 @@ ul.rec-list small em { font-style: normal; opacity: .75; }
 .kw-retry { border: 0; background: none; padding: 0 2px; font-size: 11px; color: var(--indigo); text-decoration: underline; cursor: pointer; }
 
 /* ── PYJ 로고 ── */
-.pyj { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1; }
-.pyj-name { font-weight: 800; letter-spacing: .02em; font-size: 12px; color: var(--ink); }
-.pyj-sub { font-size: 8px; letter-spacing: .6em; margin-right: -.6em; color: var(--muted); }
-.pyj-white .pyj-name, .pyj-white .pyj-sub { color: #fff; }
-.pyj-white .pyj-sub { opacity: .8; }
-.corp { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px 0 28px; }
-.corp > small { font-size: 9.5px; color: var(--muted); letter-spacing: .04em; }
-.corp .pyj-name { font-size: 10px; } .corp .pyj-sub { font-size: 7px; }
-:root { --pyj: #3a3a9e; }
-@media (prefers-color-scheme: dark) { :root { --pyj: #9aa6ff; } }
+.pyj { display: inline-flex; line-height: 0; }
+.pyj svg { display: block; }
+.pyj-brand { color: var(--pyj); }
+.pyj-white { color: #fff; }
+.corp { display: flex; justify-content: center; padding: 22px 0 28px; }
+:root { --pyj: #3b3a9e; }
+@media (prefers-color-scheme: dark) { :root { --pyj: #ffffff; } }
 
 /* ── 첫 화면 (파란 화면 잠깐 → 사이트) ── */
 .splash { position: fixed; inset: 0; z-index: 9999; background: #245BEB; color: #fff; display: flex; align-items: center; justify-content: center;

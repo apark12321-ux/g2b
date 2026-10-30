@@ -1,22 +1,30 @@
-// PYJ 모노그램 로고 — P(크게, 아래) · Y(작게, 위) · J(아래로 내려옴)를 엇갈려 쌓은 형태
-// tone: "brand"(남색 글자) | "white"(파란 배경 위)
-export function PyjMark({ size = 72, color = "currentColor" }) {
+// PYJ 픽스컴퍼니 로고 (제공된 원본 SVG 그대로) — 색은 글자색(currentColor)을 따름
+// tone: "brand"(네이비, 다크 모드에서는 흰색) | "white"(파란 배경 위)
+const MARK = [
+  ["M26 58V128", 15],
+  ["M19 65H48a20 20 0 0 1 0 40H26", 13],
+  ["M64 14L85 46L106 14", 12],
+  ["M85 44V82", 12.5],
+  ["M124 62V118a15 15 0 0 1-15 15h-9", 13],
+];
+const WORD = "M18.336 170.384V172.952H30.288V178.136H33.48V170.384ZM30.288 155.912V169.472H33.48V155.912ZM15.744 168.68C19.56 168.68 24.552 168.608 28.992 167.864L28.776 165.536C27.936 165.632 27.072 165.728 26.184 165.8V160.04H27.936V157.496H15.96V160.04H17.736V166.112H15.408ZM20.784 160.04H23.112V165.968L20.784 166.064ZM39.984 172.808V175.424H60.12V172.808ZM48.24 157.184V158.792C48.24 161.96 45.48 165.488 40.464 166.352L41.832 169.016C45.672 168.248 48.504 166.064 49.92 163.28C51.36 166.088 54.168 168.248 58.056 169.016L59.424 166.352C54.384 165.488 51.648 162.032 51.648 158.792V157.184ZM68.88 169.568V177.896H83.544V169.568ZM80.4 172.064V175.376H72.024V172.064ZM80.328 155.888V161.456H76.464V164.024H80.328V168.584H83.544V155.888ZM66.432 156.968V159.512H73.224C73.152 160.064 73.056 160.592 72.864 161.096L65.304 161.336L65.736 163.832L71.52 163.4C70.272 164.816 68.28 165.968 65.28 166.832L66.504 169.328C73.728 167.168 76.608 163.112 76.608 156.968ZM90.12 173.096C93.912 173.096 98.976 173 103.416 172.232L103.2 169.904C102.36 170 101.496 170.096 100.608 170.168V160.4H102.696V157.832H90.384V160.4H92.232V170.504H89.808ZM95.328 160.4H97.512V170.36L95.328 170.432ZM102.048 163.976V166.544H105.36V178.136H108.552V155.912H105.36V163.976ZM130.248 155.888V178.112H133.416V155.888ZM116.016 169.928V172.64H118.008C121.392 172.64 125.064 172.424 128.856 171.632L128.52 168.968C125.28 169.616 122.112 169.856 119.208 169.928V158H116.016Z";
+
+export function PyjMark({ size = 60, word = true }) {
+  const vh = word ? 188 : 140;
   return (
-    <svg width={size} height={size * 0.82} viewBox="0 0 120 98" aria-hidden="true" focusable="false">
-      <g style={{ fill: color }} fontFamily="'Pretendard Variable', Pretendard, 'Helvetica Neue', Arial, sans-serif" fontWeight="800">
-        <text x="10" y="82" fontSize="72">P</text>
-        <text x="50" y="44" fontSize="48">Y</text>
-        <text x="70" y="94" fontSize="72">J</text>
+    <svg width={size} height={(size * vh) / 150} viewBox={`0 0 150 ${vh}`} role="img" aria-label="PYJ 픽스컴퍼니" focusable="false">
+      <g fill="none" stroke="currentColor" strokeLinecap="butt" strokeLinejoin="miter">
+        {MARK.map(([d, w]) => <path key={d} d={d} strokeWidth={w} />)}
       </g>
+      {word && <path fill="currentColor" d={WORD} />}
     </svg>
   );
 }
 
-export default function PyjLogo({ tone = "brand", size = 72, sub = "WORKS" }) {
+export default function PyjLogo({ tone = "brand", size = 60, word = true }) {
   return (
     <span className={`pyj pyj-${tone}`}>
-      <PyjMark size={size} color={tone === "white" ? "#fff" : "var(--pyj, #3a3a9e)"} />
-      {sub && <span className="pyj-sub">{sub}</span>}
+      <PyjMark size={size} word={word} />
     </span>
   );
 }

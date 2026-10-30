@@ -53,14 +53,14 @@ export default function RootLayout({ children }) {
         {/* 첫 화면: 파란 화면이 아주 잠시 보인 뒤 사라짐 (CSS만으로 동작 — 스크립트 로딩 전에도 보임) */}
         <div className="splash" aria-hidden="true">
           <div className="splash-title"><span>입찰</span><span>알림</span></div>
-          <div className="splash-foot"><PyjLogo tone="white" size={46} /></div>
+          <div className="splash-foot"><PyjLogo tone="white" size={44} /></div>
         </div>
         <RegisterSW />
         <InstallSheet />
         <Nav />
         <main className="wrap">{children}</main>
         {/* 제작자 표기 */}
-        <footer className="corp"><small>Made by</small><PyjLogo size={34} /></footer>
+        <footer className="corp"><PyjLogo size={48} /></footer>
       </body>
     </html>
   );
