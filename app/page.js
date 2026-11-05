@@ -997,6 +997,48 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   <div><span>대금 지급 <em className={`tg ${a.payment?.method ? "fact" : "est"}`}>{a.payment?.method ? "문서" : "미기재"}</em></span><b className="sm">{a.payment?.method || "문서에 지급 조건 없음"}</b><small>{cash ? (cash.peak < 1e6 ? "선금으로 충당 가능" : `선투입 약 ${est.won(cash.peak)}`) : a.payment?.method ? "" : "공고문·계약특수조건 확인 필요"}</small></div>
                 </div>
                 {(() => {
+                  // 핵심 검토 항목: 공고문·제안요청서에서 확인된 값만
+                  const k = a.keyReview;
+                  if (!k) return null;
+                  const ev = k.evaluation || {};
+                  const lic = k.license;
+                  const REL = { 모두: "모두 보유", 택일: "하나 이상 보유", 단일: "보유", 불명확: "관계 원문 확인" };
+                  const rows = [
+                    lic && ["참가 업종", `${lic.items.map((x) => `${x.name || ""}${x.code ? ` (${x.code})` : ""}`.trim()).join(lic.relation === "택일" ? " 또는 " : " + ")}`, REL[lic.relation], lic],
+                    k.directProduction && ["직접생산확인", k.directProduction.value, "", k.directProduction],
+                    (ev.method || ev.techPrice) && ["평가 방식", [ev.method?.value, ev.techPrice && `기술 : 가격 ${ev.techPrice.value}`].filter(Boolean).join(" · "), ev.passLine?.value || "", ev.techPrice || ev.method],
+                    k.record && ["실적", k.record.value, `${k.record.kind === "배점" ? "평가 배점" : k.record.kind === "자격" ? "참가 자격" : k.record.kind === "자격+배점" ? "참가 자격 + 평가 배점" : k.record.kind}${k.record.points ? ` ${k.record.points}점` : ""}`, k.record],
+                    k.scale?.length > 0 && ["과업 규모", k.scale.slice(0, 4).map((x) => x.value).join(" · "), "", k.scale[0]],
+                    k.staffing && ["요구 인력", k.staffing.value, "", k.staffing],
+                    (() => {
+                      const fact = (label) => (a.facts || []).flatMap((g) => g.rows).find((r) => r.label === label && !r.missing);
+                      const j = k.joint || fact("공동수급"), sc = k.subcontract || fact("하도급");
+                      const strip = (v, w) => String(v || "").replace(new RegExp(`^\\s*[-·]?\\s*${w}\\s*[:：]?\\s*`), "");
+                      if (!j && !sc) return null;
+                      return ["공동수급 · 하도급", [j && `공동수급 ${strip(j.value, "공동수급")}`, sc && `하도급 ${strip(sc.value, "하도급")}`].filter(Boolean).join(" · "), "", j || sc];
+                    })(),
+                    k.presentation && ["제안 발표", k.presentation.value, "", k.presentation],
+                  ].filter(Boolean);
+                  if (!rows.length) return null;
+                  return (
+                    <div className="sum-box key">
+                      <h4>핵심 검토 항목 <small>공고문·제안요청서 원문 기준</small></h4>
+                      <dl className="kr">
+                        {rows.map(([label, value, note, src]) => (
+                          <div key={label}>
+                            <dt>{label}</dt>
+                            <dd>
+                              <span>{value}{note && note.length <= 24 && <em className="kr-note">{note}</em>}</span>
+                              {note && note.length > 24 && <small className="kr-sub">{note}</small>}
+                              {src?.quote && <details className="qt"><summary>원문</summary>“{src.quote}” <small>{src.source}</small></details>}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  );
+                })()}
+                {(() => {
                   const wm = a.workMix?.level ? a.workMix : workMix(b, a, "");
                   if (!wm) return null;
                   return (
