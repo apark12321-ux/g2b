@@ -19,7 +19,7 @@ window.__inapp={android:android,ext:ext,url:u};
 function show(){if(document.querySelector(".inapp"))return;
 var d=document.createElement("div");d.className="inapp";
 var go=android?chrome:ext;
-d.innerHTML='<div class="inapp-card"><b>외부 브라우저에서 열기</b><p>카카오톡 안에서는 알림·앱 설치 불가</p>'+(go?'<a class="btn primary" href="'+go+'">'+(android?"크롬으로 열기":"사파리로 열기")+'</a>':"")+'<button type="button" class="btn" id="inapp-copy">주소 복사</button><button type="button" class="inapp-skip" id="inapp-skip">그냥 보기</button></div>';
+d.innerHTML='<div class="inapp-card"><b>외부 브라우저에서 열기</b><p>카카오톡 안에서는 알림·앱 설치 불가</p>'+(go?'<a class="btn primary" href="'+go+'">'+(android?"크롬으로 열기":"사파리로 열기")+'</a>':"")+'<button type="button" class="btn" id="inapp-copy">주소 복사</button><button type="button" class="inapp-skip" id="inapp-skip">현재 화면 유지</button></div>';
 document.body.appendChild(d);
 document.getElementById("inapp-skip").onclick=function(){d.remove();};
 document.getElementById("inapp-copy").onclick=function(){var b=this;(navigator.clipboard?navigator.clipboard.writeText(href):Promise.reject()).then(function(){b.textContent="복사 완료 · 브라우저에 붙여넣기";},function(){prompt("주소를 복사하세요",href);});};

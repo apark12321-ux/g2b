@@ -140,9 +140,9 @@ export default function Home() {
     setCollecting(true);
     try {
       const r = await api("/api/collect", { method: "POST" });
-      if (r.failed) say(`새 공고 알림 ${r.failed}건을 보내지 못했습니다. 휴대폰 알림 채널 이름을 확인하세요.`, true);
-      else if (r.sent) say(`새 관련 공고 ${r.sent}건을 휴대폰으로 알렸습니다.`);
-      else say(`공고 ${r.fetched}건을 확인했고, 새로 올라온 관련 공고는 없습니다.`);
+      if (r.failed) say(`새 공고 알림 ${r.failed}건 발송 실패 · 휴대폰 알림 채널 이름 확인 필요`, true);
+      else if (r.sent) say(`새 관련 공고 ${r.sent}건 휴대폰 알림 발송`);
+      else say(`공고 ${r.fetched}건 확인 · 새 관련 공고 없음`);
       await load();
     } catch (e) {
       say(e.message, true);
@@ -256,7 +256,7 @@ export default function Home() {
     load();
   };
 
-  analyze.done = (key) => say("분석이 끝났습니다.", false, null, { label: "리포트 보기", fn: () => openReport(key) });
+  analyze.done = (key) => say("분석 완료", false, null, { label: "리포트 보기", fn: () => openReport(key) });
 
   const base = useMemo(() => {
     if (!data) return [];
@@ -317,9 +317,9 @@ export default function Home() {
         <div className="trash-bar">
           <button className="mini" onClick={() => setTrashOpen(false)}>← 돌아가기</button>
           <h2>휴지통</h2>
-          <p>불참 처리한 공고입니다. 되살리면 입찰 공고(신규)로 이동 · 마감 지난 공고는 자동 삭제</p>
+          <p>불참 처리 공고 · 복원 시 입찰 공고(신규)로 이동 · 마감 경과 공고 자동 삭제</p>
         </div>
-        {!trash.length ? <div className="empty">휴지통이 비어 있습니다.</div> : (
+        {!trash.length ? <div className="empty">휴지통 비어 있음</div> : (
           <ul className="trash-list">
             {trash.map((b) => (
               <li key={b.key}>
@@ -368,9 +368,9 @@ export default function Home() {
             return (
               <div className={`run ${tone}`}>
                 <span className={`hb ${broke ? "err" : healing ? "busy" : "on"}`} aria-hidden />
-                {healing ? "수집이 밀려 있어 지금 받아오는 중입니다"
-                  : broke ? `수집하지 못했습니다: ${healErr || run.error} — 아래 '수동 수집'을 눌러 보세요`
-                  : mins === null ? "첫 수집을 기다리는 중입니다"
+                {healing ? "수집 지연 · 현재 수집 진행"
+                  : broke ? `수집 실패: ${healErr || run.error} · 아래 '수동 수집' 실행 필요`
+                  : mins === null ? "첫 수집 대기"
                   : late ? `마지막 수집 ${mins >= 120 ? `${Math.floor(mins / 60)}시간` : `${mins}분`} 전 — 화면을 열어 두면 곧 다시 받아옵니다`
                   : `자동 수집 정상 · ${mins}분 전 · 공고 ${run.fetched}건 확인, 새 알림 ${run.sent}건${run.failed ? `, 알림 실패 ${run.failed}건` : ""}`}
               </div>
@@ -442,7 +442,7 @@ export default function Home() {
         })()}
         <button className="trash-link" disabled={refreshing} onClick={async () => {
           setRefreshing(true);
-          say("기존 공고를 새 방식으로 다시 분석하는 중입니다. 몇 분 걸릴 수 있습니다.");
+          say("기존 공고 재분석 진행 · 수 분 소요");
           try {
             let left = 1, total = 0;
             for (let i = 0; i < 6 && left > 0; i++) {
@@ -451,11 +451,11 @@ export default function Home() {
               await load();
               if (!r.done) break;
             }
-            say(left ? `${total}건 갱신, ${left}건 남음 — 10분마다 자동으로 이어서 갱신됩니다.` : `${total}건 갱신 완료. 모두 최신입니다.`);
-          } catch (e) { say(`갱신하지 못했습니다: ${e.message}`, true); }
+            say(left ? `${total}건 갱신 · ${left}건 남음 · 10분 간격 자동 갱신` : `${total}건 갱신 완료 · 전체 최신 상태`);
+          } catch (e) { say(`갱신 실패: ${e.message}`, true); }
           finally { setRefreshing(false); }
         }}>{refreshing ? "분석 갱신 중…" : "기존 공고 분석 갱신"}</button>
-        10분마다 자동으로 수집합니다.
+        10분 간격 자동 수집
         <button className="foot-link" onClick={collect} disabled={collecting}>{collecting ? "수집 중" : "수동 수집"}</button>
       </footer>
 
@@ -502,7 +502,7 @@ function DevicePush({ say }) {
     const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(publicKey) });
     await api("/api/push/subscribe", { method: "POST", body: JSON.stringify({ sub: sub.toJSON() }) });
     setState("on");
-    say("알림을 켰습니다.");
+    say("알림 켜짐");
   };
   const turnOff = async () => {
     const reg = await navigator.serviceWorker.ready;
@@ -512,12 +512,12 @@ function DevicePush({ say }) {
       await sub.unsubscribe();
     }
     setState("off");
-    say("알림을 껐습니다.");
+    say("알림 꺼짐");
   };
   const toggle = async () => {
     setBusy(true);
     try { state === "on" ? await turnOff() : await turnOn(); }
-    catch (e) { say(`설정하지 못했습니다: ${e.message}`, true); }
+    catch (e) { say(`설정 실패: ${e.message}`, true); }
     finally { setBusy(false); }
   };
 
@@ -534,9 +534,9 @@ function DevicePush({ say }) {
           <span className="tlabel">{state === "on" ? "ON" : "OFF"}</span>
         </button>
       </div>
-      {state === "ios" && <p>아이폰은 아래 방법으로 앱을 설치한 뒤, 앱에서 켤 수 있습니다.</p>}
-      {state === "unsupported" && <p>이 브라우저는 알림을 지원하지 않습니다. Chrome이나 설치한 앱에서 켜 주세요.</p>}
-      {state === "denied" && <p>알림이 차단되어 있습니다. 휴대폰(또는 브라우저) 설정에서 이 사이트의 알림을 허용해 주세요.</p>}
+      {state === "ios" && <p>아이폰: 아래 방법으로 앱 설치 후 앱에서 설정</p>}
+      {state === "unsupported" && <p>이 브라우저는 알림 미지원 · Chrome 또는 설치한 앱에서 설정</p>}
+      {state === "denied" && <p>알림 차단 상태 · 휴대폰(또는 브라우저) 설정에서 이 사이트 알림 허용 필요</p>}
     </div>
   );
 }
@@ -552,7 +552,7 @@ function InstallGuide() {
     window.addEventListener("appinstalled", () => setInstalled(true));
     return () => window.removeEventListener("beforeinstallprompt", h);
   }, []);
-  if (installed) return <div className="push-box"><b>앱 설치</b><p>앱으로 실행 중입니다.</p></div>;
+  if (installed) return <div className="push-box"><b>앱 설치</b><p>앱으로 실행 중</p></div>;
   return (
     <div className="push-box">
       <b>앱 설치</b>
@@ -561,7 +561,7 @@ function InstallGuide() {
       )}
       <p><b>갤럭시</b> Chrome 오른쪽 위 <b>⋮</b> → <b>앱 설치</b>(또는 홈 화면에 추가)</p>
       <p><b>아이폰</b> Safari 아래 <b>공유(□↑)</b> → <b>홈 화면에 추가</b></p>
-      <p>설치한 앱을 열고 위의 <b>알림 받기</b>를 ON으로 켜 주세요.</p>
+      <p>설치한 앱에서 <b>알림 받기</b> ON 설정</p>
     </div>
   );
 }
@@ -629,7 +629,7 @@ const TONE = { good: "v-good", warn: "v-warn", bad: "v-bad" };
 function ReviewBadge({ bid: b, an }) {
   const v = b.analysis?.review?.verdict;
   if (an.working) return <div className="an-wait"><span className="dot on" aria-hidden />분석 중</div>;
-  if (!v) return <div className="an-wait">검토·분석에서 분석 결과를 볼 수 있습니다</div>;
+  if (!v) return <div className="an-wait">분석 결과는 검토·분석 탭에서 확인</div>;
   return (
     <div className="rv-badge-row">
       <span className={`rv-badge ${TONE[v.tone]}`}>{v.level}</span>
@@ -645,14 +645,14 @@ function Review({ bid: b, an }) {
     if (an.error) {
       return (
         <div className="an-wait an-err">
-          분석하지 못했습니다: {an.error} <button className="mini" onClick={() => an.retry(true)}>다시 시도</button>
+          분석 실패: {an.error} <button className="mini" onClick={() => an.retry(true)}>다시 시도</button>
         </div>
       );
     }
     return (
       <div className="an-wait">
         <span className={an.working ? "dot on" : "dot"} aria-hidden />
-        {an.working ? "첨부파일을 읽고 분석하는 중입니다" : "분석 대기 중"}
+        {an.working ? "첨부파일 분석 진행 중" : "분석 대기 중"}
       </div>
     );
   }
@@ -703,7 +703,7 @@ function Review({ bid: b, an }) {
 
       <div className="an-foot">
         <span>{a.sources?.length ? `읽은 파일 ${a.sources.length}개` : "첨부를 읽지 못해 공고 정보로만 판단"}</span>
-        <button className="mini" onClick={() => an.retry(true)} disabled={an.working}>{an.working ? "다시 분석하는 중" : "다시 분석"}</button>
+        <button className="mini" onClick={() => an.retry(true)} disabled={an.working}>{an.working ? "재분석 진행 중" : "다시 분석"}</button>
       </div>
     </div>
   );
@@ -761,7 +761,7 @@ function ScheduleBoard({ bids, onOpen }) {
             </div>
           )}
         </div>
-        {!rows.length ? <p className="sc-empty">다가오는 마감이 없습니다.</p> : (
+        {!rows.length ? <p className="sc-empty">예정된 마감 없음</p> : (
           <table className="sc-table">
             <thead>
               <tr>
@@ -810,7 +810,7 @@ function AnalyzeProgress({ started }) {
   const at = sec < 4 ? 0 : sec < 15 ? 1 : sec < 60 ? 2 : sec < 100 ? 3 : 4;
   return (
     <div className="an-progress">
-      <div className="ap-head"><span className="dot on" aria-hidden /> 제안요청서를 꼼꼼히 분석하는 중 · {Math.floor(sec / 60) ? `${Math.floor(sec / 60)}분 ` : ""}{sec % 60}초</div>
+      <div className="ap-head"><span className="dot on" aria-hidden /> 제안요청서 분석 진행 중 · {Math.floor(sec / 60) ? `${Math.floor(sec / 60)}분 ` : ""}{sec % 60}초</div>
       <ol>{steps.map((x, i) => <li key={i} className={i < at ? "done" : i === at ? "now" : ""}>{x}</li>)}</ol>
       <p>문서가 길면 1~4분 걸립니다. 다른 공고를 보셔도 되고, 끝나면 "리포트 보기" 알림이 뜹니다.</p>
     </div>
@@ -845,7 +845,7 @@ function CostEditor({ model, onSaved, say }) {
   );
   return (
     <div className="cost-edit">
-      <p>발주처 예산 = 순원가(노무비 + 경비) × (1 + 일반관리비) × (1 + 이윤)로 역산하고, 그 노무비만큼 인력을 배치합니다. 산출내역서가 있으면 그 금액을, 없으면 과업지시서의 인원·수량·기간을 씁니다. 회사 사정에 맞게 고치면 모든 공고에 바로 다시 계산됩니다.</p>
+      <p>발주처 예산 = 순원가(노무비 + 경비) × (1 + 일반관리비) × (1 + 이윤) 기준 역산 · 노무비만큼 인력 배치. 산출내역서 우선, 없으면 과업지시서의 인원·수량·기간 적용. 기준 수정 시 전체 공고 즉시 재계산.</p>
       <div className="ce-grid">
         {F("rateHigh", "고급 1일 노임 (책임자·PM)", "원")}
         {F("rateMid", "중급 1일 노임 (실무)", "원")}
@@ -958,8 +958,8 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
       )}
       {r && !an.working && a?.readRetry && (
         <p className="rp-retry">
-          {a.readRetry.noFiles ? "첨부 문서가 아직 올라오지 않았습니다" : `첨부 문서 ${a.readRetry.missed?.length || ""}개를 아직 읽지 못했습니다`}
-          {" — "}읽을 때까지 10분마다 자동으로 다시 시도합니다
+          {a.readRetry.noFiles ? "첨부 문서 미게시" : `첨부 문서 ${a.readRetry.missed?.length || ""}개 미판독`}
+          {" · "}판독 완료 시까지 10분 간격 자동 재시도
           <small>{a.readRetry.tries}회째 · 마지막 시도 {at(a.readRetry.at)}</small>
         </p>
       )}
@@ -967,7 +967,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
       {(!r || an.working) ? (
         <div className="rp-body">
           {an.error ? (
-            <div className="an-wait an-err">분석하지 못했습니다: {an.error} <button className="mini" onClick={() => an.retry(true)}>다시 시도</button></div>
+            <div className="an-wait an-err">분석 실패: {an.error} <button className="mini" onClick={() => an.retry(true)}>다시 시도</button></div>
           ) : (
             an.working ? <AnalyzeProgress started={an.started} /> : <div className="an-wait"><span className="dot" aria-hidden />분석 대기 중</div>
           )}
@@ -1060,7 +1060,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                               <li key={x.key}><b>{x.label}</b>{x.why.map((w, i) => <span key={i}>{w}</span>)}</li>
                             ))}
                           </ul>
-                          {!wm.exact && <p>분량이 문서에 적혀 있지 않아 대략 나눈 값입니다. 제안요청서·과업지시서에서 직접 확인하세요.</p>}
+                          {!wm.exact && <p>문서에 분량 미기재 · 개략 배분값 · 제안요청서·과업지시서 확인 필요</p>}
                         </details>
                       )}
                     </div>
@@ -1122,8 +1122,8 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                     <div className="sum-box rec">
                       <h4>유사용역 실적 <small>{(a.sources || []).length ? `읽은 문서 ${(a.sources || []).length}개에 실적 관련 문구 없음` : "문서를 읽지 못함"}</small></h4>
                       <p className="rec-note">{(a.sources || []).length
-                        ? "공고문·제안요청서 어디에도 '실적' 조건이 나오지 않습니다. 첨부 외 별도 공고(입찰공고문 본문)가 있으면 그쪽을 확인하세요."
-                        : "첨부 문서를 읽지 못해 실적 조건을 확인할 수 없습니다. 공고 원문에서 직접 확인하세요."}</p>
+                        ? "공고문·제안요청서에 실적 조건 없음 · 첨부 외 입찰공고문 본문 확인 필요"
+                        : "첨부 문서 미판독 · 실적 조건 확인 불가 · 공고 원문 확인 필요"}</p>
                     </div>
                   );
                   const tone = rec.kind === "자격" || rec.kind === "둘다" ? "bad"
@@ -1156,7 +1156,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                     </div>
                   );
                 })()}
-                <p className="rp-disclaimer">자동 분석한 <b>검토 참고 자료</b>입니다. 추정값이 포함되어 있으니 원문과 함께 최종 확인 후 결정하세요.</p>
+                <p className="rp-disclaimer">자동 분석 <b>검토 참고 자료</b> · 추정값 포함 · 원문 대조 후 최종 판단</p>
               </section>
             );
           })()}
@@ -1206,7 +1206,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
             <details className="rp-fold"><summary>원가 · 인력 상세 <small>{est.owner ? "발주처 원가 역산 · " : ""}역할별 투입·비용 항목</small></summary>
               
               {est.confidence === "낮음" && (
-                <p className="rp-warn">문서에서 투입 인력·수량을 확인하지 못해 발주처 예산 구조로만 계산했습니다. 마진·점수가 실제와 크게 다를 수 있으니 과업지시서의 인원·수량·기간을 확인하세요.</p>
+                <p className="rp-warn">투입 인력·수량 문서 미확인 · 발주처 예산 구조 기준 산정 · 마진·점수 오차 가능 · 과업지시서의 인원·수량·기간 확인 필요</p>
               )}
               {est.owner && (
                 <>
@@ -1283,12 +1283,12 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   ? ` (계약 예정 ${new Date(est.start).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric" })} ~ ${est.endText}, 시작일 = ${est.startBasis})`
                   : ` (${est.monthsSource})`} ·{" "}
                 <button className="mini" onClick={async () => {
-                  const v = window.prompt("실제 수행기간(개월)을 입력하세요", String(est.months));
+                  const v = window.prompt("실제 수행기간(개월)", String(est.months));
                   if (v === null) return;
                   try {
                     const res = await api(`/api/bids/${encodeURIComponent(b.key)}`, { method: "PATCH", body: JSON.stringify({ periodMonths: Number(v) }) });
                     onLocal(b.key, { analysis: res.analysis });
-                    say(`수행기간을 ${v}개월로 바꿨습니다.`);
+                    say(`수행기간 ${v}개월 적용`);
                   } catch (e) { say(e.message, true); }
                 }}>기간 수정</button>
               </p>
@@ -1299,7 +1299,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                 {est.model.custom ? " (회사 설정)" : ` (${LABOR.source})`}, 가용 인력 {est.model.teamMax}명.
                 {" "}<button className="mini" onClick={() => setEditCost(!editCost)}>{editCost ? "닫기" : "원가 기준 수정"}</button>
               </p>
-              {editCost && <CostEditor model={model} onSaved={(m) => { onModel(m); setEditCost(false); say("원가 기준을 저장했습니다. 모든 리포트에 바로 적용됩니다."); }} say={say} />}
+              {editCost && <CostEditor model={model} onSaved={(m) => { onModel(m); setEditCost(false); say("원가 기준 저장 · 전체 리포트 즉시 반영"); }} say={say} />}
             </details>
           )}
 
@@ -1312,7 +1312,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                 
                 <div className="tbl"><table className="rp-mm rp-pay">
                   <tbody>
-                    <Row k="지급 방식" v={<b>{p.method || "읽은 문서에 지급 조건이 없습니다"}</b>} />
+                    <Row k="지급 방식" v={<b>{p.method || "문서에 지급 조건 없음"}</b>} />
                     <Row k="선금" v={p.advance ? (p.advance.has ? "문서에 선금 조항 있음 (아래 원문)" : "선금 미지급 (아래 원문)") : "문서에서 확인되지 않음"} ev={p.advance?.text} />
                     <Row k="기성(중간 지급)" v={p.progress ? "문서에 기성 조항 있음 (아래 원문)" : "문서에서 확인되지 않음"} ev={p.progress?.text} />
                     <Row k="잔금 지급 시기" v={p.final ? (p.final.days ? `검사·검수 후 ${p.final.days}일 이내 (아래 원문)` : "아래 원문 참고") : "문서에서 확인되지 않음"} ev={p.final?.text} />
@@ -1415,7 +1415,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
       {r && !an.working && <footer className="rp-foot">
         <span className="rp-src">
           {a?.sources?.length ? `분석 근거: ${a.sources.join(", ")}` : r ? "첨부를 읽지 못해 공고 정보로만 판단" : ""}
-          {r && <button className="mini" onClick={() => an.retry(true)} disabled={an.working}>{an.working ? "다시 분석하는 중" : "다시 분석"}</button>}
+          {r && <button className="mini" onClick={() => an.retry(true)} disabled={an.working}>{an.working ? "재분석 진행 중" : "다시 분석"}</button>}
         </span>
         <Stamps bid={b} onUpdate={onUpdate} an={an} say={say} section={section} />
       </footer>}
@@ -1443,7 +1443,7 @@ function PassDialog({ bid: b, onClose, onConfirm }) {
   return (
     <div className="dlg-back" onClick={onClose}>
       <div className="dlg" role="dialog" aria-modal="true" aria-label="불참 사유" onClick={(e) => e.stopPropagation()}>
-        <h3>불참 사유를 골라 주세요</h3>
+        <h3>불참 사유 선택</h3>
         <p className="dlg-sub">{b.title}</p>
         <div className="reasons">
           {PASS_REASONS.map(([id, label, hint]) => (
@@ -1472,7 +1472,7 @@ function Stamps({ bid: b, onUpdate, an, say, section }) {
     return (
       <div className="stamps solo" aria-label="검토">
         <button className="stamp review" title="검토·분석으로 보내고 원가·일정 분석 시작"
-          onClick={() => { onUpdate(b.key, { status: "review" }); say("검토·분석으로 옮겨 분석을 시작합니다. 분석이 끝나면 참여·불참을 고르세요."); an.retry(false); }}>
+          onClick={() => { onUpdate(b.key, { status: "review" }); say("검토·분석으로 이동 · 분석 시작 · 완료 후 참여·불참 선택"); an.retry(false); }}>
           검토
         </button>
         <span className="stamp-hint">누르면 분석</span>
@@ -1494,9 +1494,9 @@ function Stamps({ bid: b, onUpdate, an, say, section }) {
               if (id === "pass") { setAsking(true); return; } // 사유를 골라야 확정
               // 참여 해제는 검토·분석으로 되돌림
               onUpdate(b.key, { status: on ? (id === "join" ? "review" : "new") : id });
-              if (!on && id === "join") say("참여로 옮겼습니다.");
+              if (!on && id === "join") say("참여로 이동");
               if (!on && id === "review") {
-                say("검토·분석에 추가하고 분석을 시작합니다.");
+                say("검토·분석 추가 · 분석 시작");
                 an.retry(false);
               }
             }}
@@ -1510,7 +1510,7 @@ function Stamps({ bid: b, onUpdate, an, say, section }) {
           const prev = { status: b.status, memo: b.memo || "" };
           setAsking(false);
           onUpdate(b.key, { status: "pass", memo: `불참 사유: ${reason}` });
-          say(`불참 처리했습니다 (${reason}).`, false, () => onUpdate(b.key, prev));
+          say(`불참 처리 (${reason})`, false, () => onUpdate(b.key, prev));
         }} />
       )}
     </div>
