@@ -987,6 +987,12 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   <b>{ws.grade}</b>
                   <div><strong>{ws.label}</strong><small>수주 가능성 {ws.score}점</small></div>
                 </div>
+                {ws.reasons?.length > 0 && (
+                  <details className="ws-why">
+                    <summary>점수 근거 · 기본 60점</summary>
+                    <ul>{ws.reasons.map((x, i) => <li key={i} className={/^-/.test(x) ? "neg" : /^\+/.test(x) ? "pos" : ""}>{x}</li>)}</ul>
+                  </details>
+                )}
                 <div className="sum-kpis">
                   <div className={est?.margin == null ? "" : est.margin < 0 ? "bad" : est.margin < 0.1 ? "warn" : "good"}>
                     <span>예상 마진 <em className="tg est">추정</em></span><b>{est?.margin == null ? "-" : pct(est.margin)}</b>
