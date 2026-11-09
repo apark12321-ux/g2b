@@ -994,9 +994,9 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   </details>
                 )}
                 <div className="sum-kpis">
-                  <div className={est?.margin == null ? "" : est.margin < 0 ? "bad" : est.margin < 0.1 ? "warn" : "good"}>
+                  <div className={est?.margin == null ? "" : est.margin < 0.1 || est.fitted ? "warn" : "good"}>
                     <span>예상 마진 <em className="tg est">추정</em></span><b>{est?.margin == null ? "-" : pct(est.margin)}</b>
-                    <small>{est?.net != null && est.supply ? `순이익 ${pct(est.net / est.supply)}` : "가격 미공개"}</small>
+                    <small>{est?.fitted ? "산정 원가 예산 초과 · 인건비 조정" : est?.net != null && est.supply ? `순이익 ${pct(est.net / est.supply)}` : "가격 미공개"}</small>
                   </div>
                   <div><span>투입 인력 <em className="tg est">추정</em></span><b>{est && est.periodKnown ? `${est.heads}명` : "-"}</b><small>{!est ? "" : est.periodKnown ? `${est.months}개월 · 평균 투입률 ${pct(est.avgRatePlan)}` : "사업 기간 미확인 · 기간 확인 후 산정"}</small></div>
                   <div><span>입찰 마감 <em className="tg fact">공고</em></span><b>{md(ms.close)}</b><small>{ms.present ? `PT 발표 ${md(ms.present)}` : "PT 발표일 문서에 없음"}</small></div>
@@ -1236,7 +1236,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   <small>{est.intensity === null ? "가격 미공개" : `발주처 산정 대비 (필요 투입률 ${Math.round(est.avgRateNeed * 100)}%)`}</small>
                 </div>
                 <div><span>우리 수행 원가</span><b>{est.fmt.total}</b><small>인건비 {est.fmt.labor} · 경비 {est.fmt.direct}</small></div>
-                <div className={est.margin === null ? "" : est.margin < 0 ? "bad" : est.margin < 0.1 ? "warn" : "good"}><span>예상 마진</span><b>{est.margin === null ? "-" : `${Math.round(est.margin * 100)}%`}</b>
+                <div className={est.margin === null ? "" : est.margin < 0.1 || est.fitted ? "warn" : "good"}><span>예상 마진</span><b>{est.margin === null ? "-" : `${Math.round(est.margin * 100)}%`}</b>
                   <small>{est.margin === null ? "가격 미공개" : `순이익 ${Math.round((est.net / est.supply) * 100)}%`}</small></div>
               </div>
               <div className="tbl"><table className="rp-mm rp-roles">
