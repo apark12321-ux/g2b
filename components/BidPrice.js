@@ -26,7 +26,7 @@ function Dist({ d, model }) {
   const maxP = Math.max(...model.bins.map((x) => x.p));
   return (
     <div className="bp-sec">
-      <h5>예정가격 분포 <small>복수예가 15개 · 4개 추첨 평균 · 추첨 번호 무작위 가정</small></h5>
+      <h5>예정가격 분포 <small>예비가격 15개({model.scheme}) · 4개 추첨 평균</small></h5>
       <div className="bp-q">
         <div><span>중앙값</span><b>{sp(q.p50)}</b><small>{man(planAt(d.bss, q.p50))}</small></div>
         <div><span>50% 구간</span><b>{sp(q.p25)} ~ {sp(q.p75)}</b><small>{man(planAt(d.bss, q.p25))} ~ {man(planAt(d.bss, q.p75))}</small></div>
@@ -42,14 +42,113 @@ function Dist({ d, model }) {
         ))}
       </ul>
       <p className="bp-note">사정률 = 예정가격 ÷ 기초금액 · 공고 범위 {sp(d.range.lo, 0)} ~ {sp(d.range.hi, 0)} · 99% 발생 범위 {sp(model.bins[0].from)} ~ {sp(model.bins[7].to)} · 표준편차 {model.sd.toFixed(2)}%p</p>
+      {CHECK[model.hi] && Math.abs(model.lo + model.hi) < 1e-9 && (
+        <p className="bp-note">
+          실측 검증 {CHECK[model.hi].basis} {CHECK[model.hi].n}건 · 80% 구간 적중 {CHECK[model.hi].in80}% · 실측 평균 {sp(CHECK[model.hi].mean)} (계산 {sp(model.mean)}){CHECK[model.hi].mean < model.mean - 0.1 ? " · 실제 예정가격이 약간 낮게 형성 → 하한 통과 확률은 보수적 계산" : ""}{CHECK[model.hi].in80 >= 88 ? " · 실제 분포가 계산보다 좁음" : ""}
+        </p>
+      )}
+      {!model.verified && <p className="bp-note">이 범위의 예비가격 생성 구조는 실측 미검증 · 15개 균등 구간 가정</p>}
+    </div>
+  );
+}
+
+// 실측 검증값: 낙찰정보서비스 개찰 236건 (2026-10-14 ~ 11-07 개찰, 용역)
+const CHECK = {
+  2: { basis: "조달청 기준 ±2%", n: 50, in80: 94, mean: -0.051 },
+  3: { basis: "행자부 기준 ±3%", n: 186, in80: 83, mean: -0.243 },
+};
+
+/** 계약 방식 묶음: 같은 방식끼리만 비교 */
+const groupOf = (m) => (/협상/.test(m) ? "협상" : /수의시담|수의\s*계약/.test(m) && !/견적/.test(m) ? "수의" : /하한|적격|견적|최저/.test(m) ? "가격경쟁" : "기타");
+const fx = (v, d = 2) => (v == null ? "-" : `${v.toFixed(d)}%`);
+const medOf = (a) => { const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const qOf = (a, p) => { const s = [...a].sort((x, y) => x - y); const i = (s.length - 1) * p, lo = Math.floor(i); return s[lo] + (s[Math.min(lo + 1, s.length - 1)] - s[lo]) * (i - lo); };
+const tierOf = (n) => (n >= 10 ? "" : n >= 5 ? "참고용" : "자료 부족");
+
+/** 과거 개찰: 같은 수요기관 최근 12개월 (버튼으로 조회 · 나라장터 호출량 절약) */
+function Past({ bid, d, amount }) {
+  const [p, setP] = useState(null);
+  const [state, setState] = useState("idle");
+  const load = async () => {
+    setState("loading");
+    try {
+      const q = new URLSearchParams({ no: bid.bid_no, ord: bid.bid_ord || "000", kind: kindOf(bid) });
+      const r = await fetch(`/api/past-openings?${q}`);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "조회 실패");
+      setP(j); setState("done");
+    } catch (e) { setP({ error: String(e.message || e) }); setState("error"); }
+  };
+  if (state === "idle") return (
+    <div className="bp-sec">
+      <h5>과거 개찰 <small>같은 수요기관 · 최근 12개월 · 낙찰정보서비스</small></h5>
+      <button type="button" className="mini" onClick={load}>과거 개찰 조회</button> <small className="bp-note">조회 20~30초 · 결과 하루 보관</small>
+    </div>
+  );
+  if (state === "loading") return <div className="bp-sec"><h5>과거 개찰</h5><p className="bp-wait">조회 중 · 20~30초</p></div>;
+  if (state === "error") return <div className="bp-sec"><h5>과거 개찰</h5><p className="bp-wait">{p.error} · <button type="button" className="linkish" onClick={load}>다시 조회</button></p></div>;
+
+  const g = groupOf(`${d.method} ${d.contract}`);
+  const rows = p.rows || [];
+  const same = rows.filter((r) => groupOf(r.method) === g);
+  const prtc = same.map((r) => r.prtc).filter((v) => v > 0);
+  const rates = rows.map((r) => r.rate).filter((v) => v != null);
+  const L = d.lwlt;
+  const firsts = L ? rows.filter((r) => r.lwlt === L && r.firstBss != null && r.rate != null) : [];
+  // 백테스트: 과거 같은 하한율 공고에 이 투찰률(기초금액 대비)을 넣었을 때 1순위 여부
+  const my = amount > 0 && d.bss ? (amount / d.bss) * 100 : null;
+  const bt = my != null && firsts.length ? firsts.filter((r) => my >= (r.rate * L) / 100 && my < r.firstBss).length : null;
+  const below = my != null && firsts.length ? firsts.filter((r) => my < (r.rate * L) / 100).length : null;
+  const tP = tierOf(prtc.length), tR = tierOf(rates.length), tF = tierOf(firsts.length);
+
+  return (
+    <div className="bp-sec">
+      <h5>과거 개찰 <small>{p.instt || "같은 수요기관"} · 최근 12개월 · 개찰 {rows.length}건</small></h5>
+      <div className="bp-q">
+        <div>
+          <span>참여 업체 수 · {g} {same.length}건</span>
+          {tP === "자료 부족" ? <b className="sm">자료 부족</b> : <b>{medOf(prtc)}개사{tP && <em className="tg est">{tP}</em>}</b>}
+          <small>{prtc.length >= 5 ? `중앙 50% ${Math.round(qOf(prtc, 0.25))}~${Math.round(qOf(prtc, 0.75))}개사 · 단순 확률 1/${medOf(prtc)}` : `${prtc.length}건`}</small>
+        </div>
+        <div>
+          <span>실측 사정률 · {rates.length}건</span>
+          {tR === "자료 부족" ? <b className="sm">자료 부족</b> : <b>{fx(medOf(rates))}{tR && <em className="tg est">{tR}</em>}</b>}
+          <small>{rates.length >= 5 ? `중앙 50% ${fx(qOf(rates, 0.25))} ~ ${fx(qOf(rates, 0.75))}` : "복수예가 개찰만 집계"}</small>
+        </div>
+        <div>
+          <span>1순위 기초금액 대비{L ? ` · 하한 ${L}%` : ""}</span>
+          {!L ? <b className="sm">하한율 없음</b> : tF === "자료 부족" ? <b className="sm">자료 부족</b> : <b>{fx(medOf(firsts.map((r) => r.firstBss)), 3)}{tF && <em className="tg est">{tF}</em>}</b>}
+          <small>{!L ? "가격 경쟁 공고만 해당" : firsts.length >= 5 ? `예정가격 대비 하한 +${medOf(firsts.map((r) => (r.firstPlan ?? (r.firstBss / r.rate) * 100) - L)).toFixed(3)}%p · 같은 하한율 ${firsts.length}건` : `같은 하한율 ${firsts.length}건`}</small>
+        </div>
+      </div>
+      {bt != null && firsts.length >= 5 && (
+        <p className="bp-bt">입력 금액 적용 시 과거 {firsts.length}건 중 <b>1순위 {bt}건</b> · 하한 미달 {below}건 <small>(같은 하한율 · 실제 예정가격·1순위 금액 기준)</small></p>
+      )}
+      {rows.length > 0 && (
+        <details className="bp-list">
+          <summary>개찰 목록 {rows.length}건</summary>
+          <table className="bp-tb">
+            <thead><tr><th>개찰일 · 공고명</th><th>방식</th><th>참여</th><th>사정률 · 1순위</th></tr></thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={`${r.no}-${r.ord}`}>
+                  <td><small>{r.date}</small> {r.name}</td>
+                  <td>{groupOf(r.method)}{r.lwlt ? ` ${r.lwlt}%` : ""}</td>
+                  <td>{r.prtc ?? "-"}</td>
+                  <td>{r.rate != null ? fx(r.rate) : "-"}{r.firstBss != null ? ` · ${fx(r.firstBss, 3)}` : ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
     </div>
   );
 }
 
 /** 낙찰하한율 공고: 하한 통과 확률별 투찰 금액 + 금액 입력 시 통과 확률 */
-function FloorPlan({ d, model }) {
+function FloorPlan({ d, model, v, setV }) {
   const sc = useMemo(() => floorScenarios(d.bss, d.lwlt, model), [d.bss, d.lwlt, model]);
-  const [v, setV] = useState("");
   if (!sc) return null;
   const amt = Number(String(v).replace(/[^0-9]/g, ""));
   const p = amt > 0 ? sc.passProb(amt) : null;
@@ -110,6 +209,7 @@ export default function BidPrice({ bid, H }) {
   const [d, setD] = useState(null);
   const [err, setErr] = useState("");
   const [tick, setTick] = useState(0);
+  const [amt, setAmt] = useState(""); // 투찰 금액 입력 (하한 통과 확률 · 과거 개찰 적용 공용)
 
   useEffect(() => {
     if (!bid?.bid_no || String(bid.key || "").startsWith("TEST-")) return;
@@ -171,12 +271,12 @@ export default function BidPrice({ bid, H }) {
             </div>
           )}
           {model && <Dist d={d} model={model} />}
-          {model && d.floor && <FloorPlan d={d} model={model} />}
+          {model && d.floor && <FloorPlan d={d} model={model} v={amt} setV={setAmt} />}
           {!d.floor && !d.ceil && d.reasons?.[0] && <p className="bp-why">{d.reasons[0]}{d.weight ? ` · 기술 ${d.weight.tech} : 가격 ${d.weight.price}` : ""}</p>}
         </>
       )}
       {d && d.nego && w && <NegoPrice w={w} rule={rule} />}
-      {d && <p className="bp-past">과거 개찰 분석 (실제 사정률·1순위 투찰률·참여 업체 수) · 조달청 낙찰정보서비스 활용신청 후 표시</p>}
+      {d && <Past bid={bid} d={d} amount={Number(String(amt).replace(/[^0-9]/g, ""))} />}
     </section>
   );
 }
