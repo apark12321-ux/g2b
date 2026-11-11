@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/components/api";
 import { at, dday, money, when } from "@/components/format";
-import { winScore, reviewRisks, BOILERPLATE } from "@/lib/score";
+import { winScore, reviewRisks, BOILERPLATE, verdictOf } from "@/lib/score";
 import { cashNeed } from "@/lib/payment";
 import { workMix } from "@/lib/work-mix";
 import { jointReview } from "@/lib/joint";
@@ -627,7 +627,7 @@ const TONE = { good: "v-good", warn: "v-warn", bad: "v-bad" };
 
 /** 목록에서 보이는 짧은 표시 */
 function ReviewBadge({ bid: b, an }) {
-  const v = b.analysis?.review?.verdict;
+  const v = (b.analysis?.review && verdictOf(winScore(b, b.analysis))) || b.analysis?.review?.verdict;
   if (an.working) return <div className="an-wait"><span className="dot on" aria-hidden />분석 중</div>;
   if (!v) return <div className="an-wait">분석 결과는 검토·분석 탭에서 확인</div>;
   return (
@@ -659,6 +659,7 @@ function Review({ bid: b, an }) {
   // 직접생산확인은 항상 충족되므로 표시하지 않음 (예전 분석 포함)
   const noDP = (x) => !/직접\s*생산/.test(typeof x === "string" ? x : `${x.item} ${x.detail || ""}`);
   const r = { ...a.review, risks: a.review.risks.filter(noDP), checklist: (a.review.checklist || []).filter(noDP) };
+  r.verdict = verdictOf(winScore(b, a)) || r.verdict; // 저장 판정 대신 현재 점수 기준
   const has = (x) => (Array.isArray(x) ? x.length > 0 : !!x && x !== "문서에 없음");
   const short = (x, k) => (x.length > k ? x.slice(0, k - 1) + "…" : x);
   const key = r.risks.filter((x) => x.level !== "참고"); // 높음·주의만
