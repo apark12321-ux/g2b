@@ -858,8 +858,8 @@ function CostEditor({ model, onSaved, say }) {
         {F("ownerGA", "발주처 일반관리비율", "%")}
         {F("ownerProfit", "발주처 이윤율", "%")}
         {F("laborShare", "발주처 순원가 중 노무비 비중", "%")}
-        {F("burden", "법정부담금", "%")}
-        {F("overhead", "제경비", "%")}
+        {F("burden", "법정부담금 (노임단가 인력 · 0=노임단가에 포함)", "%")}
+        {F("overhead", "회사 간접비 (직접인건비 대비)", "%")}
         {F("rework", "수정·검수 대응", "%")}
         {F("contingency", "예비비", "%")}
         {F("fixedMonthly", "월 고정경비", "만원")}
@@ -996,7 +996,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                 <div className="sum-kpis">
                   <div className={est?.margin == null ? "" : est.margin < 0.1 || est.fitted ? "warn" : "good"}>
                     <span>예상 마진 <em className="tg est">추정</em></span><b>{est?.margin == null ? "-" : pct(est.margin)}</b>
-                    <small>{est?.fitted ? "산정 원가 예산 초과 · 인건비 조정" : est?.net != null && est.supply ? `순이익 ${pct(est.net / est.supply)}` : "가격 미공개"}</small>
+                    <small>{!est?.revenue ? "가격 미공개" : est.fitted ? "산정 원가 예산 초과 · 인건비 조정" : est.useOwner ? "근거 부족 · 발주처 원가 구조 가정" : `매출 대비 · 낙찰률 ${(est.award.rate * 100).toFixed(1)}% 기준`}</small>
                   </div>
                   <div><span>투입 인력 <em className="tg est">추정</em></span><b>{est && est.periodKnown ? `${est.heads}명` : "-"}</b><small>{!est ? "" : est.periodKnown ? `${est.months}개월 · 평균 투입률 ${pct(est.avgRatePlan)}` : "사업 기간 미확인 · 기간 확인 후 산정"}</small></div>
                   <div><span>입찰 마감 <em className="tg fact">공고</em></span><b>{md(ms.close)}</b><small>{ms.present ? `PT 발표 ${md(ms.present)}` : "PT 발표일 문서에 없음"}</small></div>
@@ -1216,11 +1216,11 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
               )}
               {est.owner && (
                 <>
-                  <p className="rp-plan-note">발주처가 이미 계산해 둔 예산을 풀어서, <b>그 노무비만큼 인력을 배치</b>하는 것을 기준으로 봅니다. ({est.owner.source})</p>
+                  <p className="rp-plan-note">발주처 예산 구조 ({est.owner.source}) · 수행 원가는 {est.useOwner ? <b>발주처 노무비·경비 기준 (문서 근거 부족)</b> : <b>문서 산출량·인력 기준 필요 투입</b>}</p>
                   <div className="tbl"><table className="rp-mm rp-owner">
                     <thead><tr><th>발주처 원가</th><th>내용</th><th>금액</th></tr></thead>
                     <tbody>
-                      <tr><td>노무비</td><td>발주처 기준 투입 약 <b>{Math.round(est.owner.mm * 10) / 10}M/M</b> = {est.heads}명 × 평균 {Math.round(est.avgRatePlan * 100)}% × {est.months}개월</td><td>{est.won(est.owner.L0)}</td></tr>
+                      <tr><td>노무비</td><td>발주처 기준 투입 약 <b>{Math.round(est.owner.mm * 10) / 10}M/M</b> ({est.months}개월)</td><td>{est.won(est.owner.L0)}</td></tr>
                       <tr><td>경비</td><td>{est.model.kind === "cnstwk" ? "재료비·장비·안전관리비 등" : "자재·장비·외주·출장 등"}</td><td>{est.won(est.owner.E0)}</td></tr>
                       <tr><td>{est.owner.gaLabel}</td><td></td><td>{est.won(est.owner.G0)}</td></tr>
                       <tr><td>{est.owner.pLabel}</td><td></td><td>{est.won(est.owner.P0)}</td></tr>
@@ -1237,24 +1237,25 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                 </div>
                 <div><span>우리 수행 원가</span><b>{est.fmt.total}</b><small>인건비 {est.fmt.labor} · 경비 {est.fmt.direct}</small></div>
                 <div className={est.margin === null ? "" : est.margin < 0.1 || est.fitted ? "warn" : "good"}><span>예상 마진</span><b>{est.margin === null ? "-" : `${Math.round(est.margin * 100)}%`}</b>
-                  <small>{est.margin === null ? "가격 미공개" : `순이익 ${Math.round((est.net / est.supply) * 100)}%`}</small></div>
+                  <small>{est.margin === null ? "가격 미공개" : `순이익 ${Math.round((est.net / est.revenue) * 100)}%`}</small></div>
               </div>
               <div className="tbl"><table className="rp-mm rp-roles">
                 <thead><tr><th>역할 (수행 계획)</th><th>등급</th><th>인원</th><th>투입률</th><th>필요 투입률</th><th>인건비</th></tr></thead>
                 <tbody>
-                  {est.table.map((x, i) => <tr key={i}><td>{x.role}<small className="mon">월 {Math.round(x.monthly / 10000).toLocaleString("ko-KR")}만원{x.burden === 0.19 ? " · 직종 임금" : " · 노임단가"}</small></td><td>{x.grade}</td><td>{x.heads}명</td><td>{Math.round(x.rate * 100)}%</td><td className={x.needRate > x.rate * 1.25 ? "neg" : ""}>{Math.round(x.needRate * 100)}%</td><td>{est.won(x.cost)}</td></tr>)}
+                  {est.table.map((x, i) => <tr key={i}><td>{x.role}<small className="mon">월 {Math.round(x.monthly / 10000).toLocaleString("ko-KR")}만원{x.wage ? " · 직종 임금" : " · 노임단가"}</small></td><td>{x.grade}</td><td>{x.heads}명</td><td>{Math.round(x.rate * 100)}%</td><td className={x.needRate > x.rate * 1.25 ? "neg" : ""}>{Math.round(x.needRate * 100)}%</td><td>{est.won(x.cost)}</td></tr>)}
                   {est.inMM > 0 && <tr className="sub"><td>└ 내부 제작 인력</td><td>회사 설정 인건비</td><td></td><td></td><td>{est.inMM}</td><td>{est.won(est.inLabor)}</td></tr>}
                   {est.inMM > 0 && <tr className="sub"><td>└ 그 외</td><td>노임단가</td><td></td><td></td><td>{est.exMM}</td><td>{est.won(est.exLabor)}</td></tr>}
                   <tr className="sum"><td>① 직접인건비</td><td></td><td>{est.heads}명</td><td>평균 {Math.round(est.avgRatePlan * 100)}%</td><td>평균 {Math.round(est.avgRateNeed * 100)}%</td><td>{est.fmt.labor}</td></tr>
                   <tr><td>② 법정부담금</td><td colSpan={4}>{est.burdenNote}</td><td>{est.fmt.burden}</td></tr>
                   <tr><td>③ 직접경비</td><td colSpan={4}>{est.model.ownFacility ? "자체 시설·장비 사용(임차 제외), 자재·외주·소모품" : "자재·장비·외주·출장 등"} + 월 고정경비 {Math.round(est.model.fixedMonthly / 10000)}만원 × {est.months}개월</td><td>{est.fmt.direct}</td></tr>
                   <tr className="sum"><td>직접원가 (①+②+③)</td><td colSpan={4}></td><td>{est.fmt.total}</td></tr>
-                  {est.supply && <>
+                  {est.revenue && <>
+                    <tr><td>④ 간접비</td><td colSpan={4}>회사 관리 인력·사무실 등, ①의 {Math.round(est.model.overhead * 100)}%</td><td>{est.fmt.overhead}</td></tr>
                     <tr><td>추정가격</td><td colSpan={4}>부가세 제외</td><td>{est.fmt.supply}</td></tr>
-                    <tr className="sum"><td>마진</td><td colSpan={4}>추정가격 − 직접원가 ({Math.round(est.margin * 100)}%) = 발주처 일반관리비·이윤 + 경비 절감분</td><td className={est.margin < 0 ? "neg" : ""}>{est.fmt.margin}</td></tr>
-                    <tr className="sub"><td>└ 제경비 몫</td><td colSpan={4}>직접인건비의 {Math.round(est.model.overhead * 100)}%</td><td>{est.fmt.overhead}</td></tr>
-                    <tr className="sub"><td>└ 예비비 몫</td><td colSpan={4}>직접원가의 {Math.round(est.model.contingency * 100)}%</td><td>{est.fmt.contingency}</td></tr>
-                    <tr className="sub"><td>└ 순이익</td><td colSpan={4}>{Math.round((est.net / est.supply) * 100)}%</td><td className={est.net < 0 ? "neg" : ""}>{est.fmt.net}</td></tr>
+                    <tr><td>예상 매출</td><td colSpan={4}>추정가격 × 예상 낙찰률 {(est.award.rate * 100).toFixed(1)}% · {est.award.basis}</td><td>{est.fmt.revenue}</td></tr>
+                    <tr className="sum"><td>영업이익 (마진)</td><td colSpan={4}>예상 매출 − 직접원가 − 간접비 ({Math.round(est.margin * 100)}%)</td><td>{est.fmt.margin}</td></tr>
+                    <tr className="sub"><td>└ 예비비</td><td colSpan={4}>수정·지연 대비, 직접원가의 {Math.round(est.model.contingency * 100)}%</td><td>{est.fmt.contingency}</td></tr>
+                    <tr className="sub"><td>└ 순이익</td><td colSpan={4}>영업이익 − 예비비 ({Math.round((est.net / est.revenue) * 100)}%)</td><td className={est.net < 0 ? "neg" : ""}>{est.fmt.net}</td></tr>
                   </>}
                 </tbody>
               </table></div>
