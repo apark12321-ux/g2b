@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/components/api";
 import { at, dday, money, when } from "@/components/format";
 import { winScore, reviewRisks, BOILERPLATE, verdictOf } from "@/lib/score";
-import { cashNeed } from "@/lib/payment";
+import { cashNeed, normPayment } from "@/lib/payment";
 import { workMix } from "@/lib/work-mix";
 import { jointReview } from "@/lib/joint";
 import { estimateCost, COST, LABOR, UNIT, costModel } from "@/lib/cost";
@@ -723,8 +723,10 @@ const ST = { new: "신규", review: "검토", join: "참여" };
 const milestonesOf = (b) => {
   const m = b.analysis?.milestones || {};
   const close = m.close || b.close_at;
-  const present = m.present && !m.presentEst ? m.present : null;
-  return { qualify: m.qualify, close, submit: m.submit || close, open: m.open, present };
+  // 제출·발표는 마감 전날 ~ 마감 후 60일 안의 날짜만 (문서의 다른 날짜를 잘못 읽은 값 제외)
+  const near = (d) => d && close && new Date(d) >= new Date(new Date(close).getTime() - 864e5) && new Date(d) <= new Date(new Date(close).getTime() + 60 * 864e5) ? d : null;
+  const present = m.present && !m.presentEst ? near(m.present) : null;
+  return { qualify: m.qualify, close, submit: near(m.submit) || close, open: m.open, present };
 };
 const monthLabel = (d, edge) => {
   const x = new Date(d), day = x.getDate();
@@ -977,7 +979,8 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
         <div className="rp-body">
           {(() => {
             const ms = milestonesOf(b);
-            const cash = est ? cashNeed(a.payment, est) : null;
+            const pay = normPayment(a.payment);
+            const cash = est ? cashNeed(pay, est) : null;
             const top = risks.filter((x) => x.level !== "참고").slice(0, 3);
             const gate = (a.precheck?.gate || []);
             const done = new Set(a.checked || []);
@@ -1001,7 +1004,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   </div>
                   <div><span>투입 인력 <em className="tg est">추정</em></span><b>{est && est.periodKnown ? `${est.heads}명` : "-"}</b><small>{!est ? "" : est.periodKnown ? `${est.months}개월 · 평균 투입률 ${pct(est.avgRatePlan)}` : "사업 기간 미확인 · 기간 확인 후 산정"}</small></div>
                   <div><span>입찰 마감 <em className="tg fact">공고</em></span><b>{md(ms.close)}</b><small>{ms.present ? `PT 발표 ${md(ms.present)}` : "PT 발표일 문서에 없음"}</small></div>
-                  <div><span>대금 지급 <em className={`tg ${a.payment?.method ? "fact" : "est"}`}>{a.payment?.method ? "문서" : "미기재"}</em></span><b className="sm">{a.payment?.method || "문서에 지급 조건 없음"}</b><small>{cash ? (cash.peak < 1e6 ? "선금으로 충당 가능" : `선투입 약 ${est.won(cash.peak)}`) : a.payment?.method ? "" : "공고문·계약특수조건 확인 필요"}</small></div>
+                  <div><span>대금 지급 <em className={`tg ${a.payment?.method ? "fact" : "est"}`}>{pay?.method ? "문서" : "미기재"}</em></span><b className="sm">{pay?.method || "문서에 지급 조건 없음"}</b><small>{cash ? (cash.peak < 1e6 ? "선금으로 충당 가능" : `선투입 약 ${est.won(cash.peak)}`) : pay?.method ? "" : "공고문·계약특수조건 확인 필요"}</small></div>
                 </div>
                 {(() => {
                   // 핵심 검토 항목: 공고문·제안요청서에서 확인된 값만
@@ -1312,7 +1315,7 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
           )}
 
           {est && (() => {
-            const p = a.payment || {};
+            const p = normPayment(a.payment) || {};
             const cash = cashNeed(p, est);
             const Row = ({ k, v, ev }) => <tr><td>{k}</td><td>{v}{ev && <><br /><small className="ev">“{ev}”</small></>}</td></tr>;
             return (
@@ -1322,13 +1325,13 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
                   <tbody>
                     <Row k="지급 방식" v={<b>{p.method || "문서에 지급 조건 없음"}</b>} />
                     <Row k="선금" v={p.advance ? (p.advance.has ? "문서에 선금 조항 있음 (아래 원문)" : "선금 미지급 (아래 원문)") : "문서에서 확인되지 않음"} ev={p.advance?.text} />
-                    <Row k="기성(중간 지급)" v={p.progress ? "문서에 기성 조항 있음 (아래 원문)" : "문서에서 확인되지 않음"} ev={p.progress?.text} />
+                    <Row k="기성(중간 지급)" v={p.progress ? (p.progress.period ? `${p.progress.period === 3 ? "분기별" : "월별"} 대가 지급 (아래 원문)` : "문서에 기성 조항 있음 (아래 원문)") : "문서에서 확인되지 않음"} ev={p.progress?.text} />
                     <Row k="잔금 지급 시기" v={p.final ? (p.final.days ? `검사·검수 후 ${p.final.days}일 이내 (아래 원문)` : "아래 원문 참고") : "문서에서 확인되지 않음"} ev={p.final?.text} />
                     {p.contractBond && <Row k="계약보증금" v={`${p.contractBond.pct ?? "-"}%`} ev={p.contractBond.text} />}
                     {p.warrantyBond && <Row k="하자보수보증금" v={`${p.warrantyBond.pct ?? "-"}%`} ev={p.warrantyBond.text} />}
                     {p.warrantyPeriod && <Row k="하자담보 기간" v={`${p.warrantyPeriod.months}개월`} ev={p.warrantyPeriod.text} />}
                     {p.lateFee && <Row k="지체상금" v={p.lateFee.rate ? `1일 ${p.lateFee.rate}` : "있음"} ev={p.lateFee.text} />}
-                    {cash && <tr className="sum"><td>자금 선투입</td><td>대금 받기 전 회사가 먼저 쓰는 돈 약 <b>{est.won(cash.peak)}</b> (월 약 {est.won(cash.monthly)} × {est.months}개월{cash.adv > 0 ? `, 선금 ${est.won(cash.adv)} 반영` : ""}) · 수령까지 약 {Math.round(cash.waitMonths * 10) / 10}개월</td></tr>}
+                    {cash && <tr className="sum"><td>자금 선투입</td><td>대금 받기 전 회사가 먼저 쓰는 돈 약 <b>{est.won(cash.peak)}</b> (월 약 {est.won(cash.monthly)} × {cash.cycle ? `지급 주기·검수 ${Math.round(cash.cycle * 10) / 10}개월` : `${est.months}개월`}{cash.adv > 0 ? `, 선금 ${est.won(cash.adv)} 반영` : ""}) · 수령까지 약 {Math.round(cash.waitMonths * 10) / 10}개월</td></tr>}
                   </tbody>
                 </table></div>
               </details>
