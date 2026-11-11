@@ -60,7 +60,19 @@ export default function RootLayout({ children }) {
         <Nav />
         <main className="wrap">{children}</main>
         {/* 제작자 표기 */}
-        <footer className="corp"><PyjLogo size={48} /></footer>
+        <footer className="corp">
+          <div className="corp-in">
+            <div>
+              <nav className="corp-links" aria-label="관련 사이트">
+                <a href="/">입찰알림</a>
+                <a href="https://www.g2b.go.kr" target="_blank" rel="noreferrer">나라장터</a>
+                <a href="https://www.data.go.kr" target="_blank" rel="noreferrer">공공데이터포털</a>
+              </nav>
+              <p className="corp-note">공고·개찰 데이터: 조달청 나라장터 공공데이터(입찰공고정보서비스·낙찰정보서비스) · 분석 결과는 검토 참고 자료</p>
+            </div>
+            <PyjLogo size={44} />
+          </div>
+        </footer>
       </body>
     </html>
   );

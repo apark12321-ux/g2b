@@ -341,7 +341,7 @@ export default function Home() {
   return (
     <>
       <div className="top" ref={topRef}>
-        <div>
+        <div className="gnb">
           <div className="sections" role="tablist">
             <button role="tab" aria-selected={section === "find"} className={section === "find" ? "on" : ""} onClick={() => { setSection("find"); toTop(); }}>
               찾기
@@ -359,6 +359,9 @@ export default function Home() {
               참여{joinList.length > 0 && <span className="sec-n join">{joinList.length}</span>}
             </button>
           </div>
+        </div>
+      </div>
+      <div className="run-strip">
           {data && (() => {
             // 수집 상태. 밀려 있으면 화면이 알아서 다시 받아오므로(보조 경로) 겁주지 않는다.
             const mins = run ? Math.floor((Date.now() - new Date(run.ran_at)) / 60000) : null;
@@ -376,10 +379,7 @@ export default function Home() {
               </div>
             );
           })()}
-        </div>
       </div>
-
-
 
       {section === "review" && orgs.length > 0 && (
         <div className="org-tabs" role="tablist" aria-label="공고기관별">
