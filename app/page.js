@@ -221,7 +221,7 @@ export default function Home() {
     // 분석이 없거나, 첨부 목록이 비어 있는(다시 받아 올) 공고
     const needs = (b) =>
       !tried[b.key] && !failed[b.key] && (b.status === "review" || b.status === "join" || focus === b.key) &&
-      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 20 || !(b.files || []).length);
+      (!b.analysis || !b.analysis.review || (b.analysis.ver || 0) < 22 || !(b.files || []).length);
     const want = focus && data.bids.find((b) => b.key === focus && needs(b));
     const next = want || data.bids.find(
       (b) => needs(b) && b.status !== "pass" && (!b.close_at || new Date(b.close_at).getTime() > now)
@@ -926,10 +926,13 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
           <span>{section === "join" ? "참여 결정 공고" : "입찰 검토 리포트"}</span>
           <span className={`rp-dday ${d.tone}`}>{d.big}</span>
           {(() => {
-            const rfp = (a?.fileStatus || []).find((x) => /제안\s*요청/.test(x.name));
-            const hasRfp = (b.files || []).some((x) => /제안\s*요청/.test(x.name));
-            if (rfp && /읽음/.test(rfp.status)) return <span className="rfp ok">제안요청서 분석 완료</span>;
-            if (rfp) return <span className="rfp ng">제안요청서 {rfp.status}</span>;
+            // 제안요청서와 같은 역할의 문서(사업안내서·과업지시서 등)도 함께 인정
+            const RFP = /제안\s*요청|사업\s*안내서|사업\s*설명서|제안\s*안내서|과업\s*(?:지시|내용)서/;
+            const rfp = (a?.fileStatus || []).find((x) => RFP.test(x.name));
+            const hasRfp = (b.files || []).some((x) => RFP.test(x.name));
+            const label = rfp && !/제안\s*요청/.test(rfp.name) ? (rfp.name.match(RFP)?.[0] || "제안요청서").replace(/\s+/g, "") : "제안요청서";
+            if (rfp && /읽음/.test(rfp.status)) return <span className="rfp ok">{label} 분석 완료</span>;
+            if (rfp) return <span className="rfp ng">{label} {rfp.status}</span>;
             if (hasRfp) return <span className="rfp ng">제안요청서 미분석</span>;
             return a ? <span className="rfp ng">제안요청서 없음</span> : null;
           })()}
@@ -987,8 +990,16 @@ function ReportCard({ bid: b, onUpdate, an, focused, section, say, model, onMode
             const pct = (x) => `${Math.round(x * 100)}%`;
             return (
               <section className="rp-summary">
+                {a.gate?.ok === false && (
+                  <div className="gate-block" role="alert">
+                    <b>참가 불가 · {a.gate.item}</b>
+                    <p>{a.gate.detail}</p>
+                    {a.gate.quote && <q>{a.gate.quote}</q>}
+                    {a.gate.source && <small>근거: {a.gate.source}</small>}
+                  </div>
+                )}
                 <div className={`sum-verdict g-${ws.grade}`}>
-                  <b>{ws.grade}</b>
+                  <b>{ws.grade === "X" ? "불가" : ws.grade}</b>
                   <div><strong>{ws.label}</strong><small>수주 가능성 {ws.score}점</small></div>
                 </div>
                 {ws.reasons?.length > 0 && (
