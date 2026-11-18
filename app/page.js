@@ -713,7 +713,7 @@ function Review({ bid: b, an }) {
 /* ───────── 일정표: 제안 마감이 겹치는지, 수행 기간·인력이 겹치는지 한눈에 ───────── */
 const DAYMS = 864e5;
 const kstDay = (d) => { const x = new Date(d); return new Date(x.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" }) + "T00:00:00+09:00"); };
-const md = (d) => new Date(d).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric" }).replace(/\.\s*$/, "");
+const md = (d) => (!d ? "공고 확인" : new Date(d).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric" }).replace(/\.\s*$/, ""));
 const endOf = (a) => {
   const m = String(a?.period || "").match(/(20\d{2})\s*[.\-년/]\s*(\d{1,2})\s*[.\-월/]\s*(\d{1,2})/);
   return m ? new Date(`${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}T00:00:00+09:00`) : null;
